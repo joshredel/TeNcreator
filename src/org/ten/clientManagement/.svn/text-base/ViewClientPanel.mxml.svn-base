@@ -1,0 +1,89 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:Panel xmlns:mx="http://www.adobe.com/2006/mxml"
+	layout="absolute" width="100%" height="100%"
+	title="View Client Information">
+	
+	<mx:Script>
+		<![CDATA[
+			import mx.core.Application;
+			import org.ten.classes.Client;
+			import mx.managers.PopUpManager;
+			import org.ten.components.ConfirmationWindow;
+			import com.adobe.utils.DictionaryUtil;
+			
+			[Bindable]
+			/**
+			 * The reference to the client we are viewing.
+			 */
+			public var client:Client;
+			
+			/**
+			 * The function that will be called when
+			 * the edit button is clicked.
+			 */
+			public var editButtonFunction:Function;
+			
+			/**
+			 * @private
+			 * Handles the Edit button click.
+			 */
+			private function editButtonHandler():void
+			{
+				try
+				{
+					editButtonFunction();
+				}
+				catch(err:Error)
+				{
+					// too bad, there was no function...
+				}
+			}
+			
+			/**
+			 * @private
+			 * Handles the Delete button click by asking
+			 * the user if they are sure they wish
+			 * to delete the client.
+			 */
+			private function deleteButtonHandler():void
+			{
+				// ask them if they want to delete
+				var window:ConfirmationWindow = PopUpManager.createPopUp(Application.application as DisplayObject, ConfirmationWindow, true) as ConfirmationWindow;
+				window.text = "Are you sure you wish to delete this client?  The action is irreversible.";
+				window.yesFunction = completeDeleteClient;
+			}
+			
+			/**
+			 * @private
+			 * Deletes the user upon confirmation.
+			 */
+			private function completeDeleteClient():void
+			{
+				Client.deleteClient(client);
+				client = null;
+			}
+		]]>
+	</mx:Script>
+	
+	<mx:Form visible="{client != null}">
+		<mx:FormHeading label="Client Information"/>
+		
+		<mx:FormItem label="Clientname:">
+			<mx:Label text="{client.clientname}"/>
+		</mx:FormItem>
+		
+		<mx:FormItem label="Location:">
+			<mx:Label text="{client.location}"/>
+		</mx:FormItem>
+		
+		<mx:FormItem label="Screen Resolution:">
+			<mx:Label text="{client.nativeScreenWidth}x{client.nativeScreenHeight}"/>
+		</mx:FormItem>
+	</mx:Form>
+	
+	<mx:ControlBar width="100%" includeInLayout="{client != null}" visible="{client != null}">
+		<mx:Button label="Edit Client" click="editButtonHandler()"/>
+		<mx:Button label="Delete Client" click="deleteButtonHandler()"/>
+	</mx:ControlBar>
+	
+</mx:Panel>

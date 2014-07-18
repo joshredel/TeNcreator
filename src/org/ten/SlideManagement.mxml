@@ -1,0 +1,128 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:HBox xmlns:mx="http://www.adobe.com/2006/mxml" 
+	xmlns:slide="org.ten.slideManagement.*"
+	xmlns:efflex="org.efflex.mx.viewStackEffects.*" 
+	width="100%" height="100%" show="Slide.getSlides()"
+	label="{(dataShop.currentUser == null ? '' : (dataShop.currentUser.type == User.TYPE_PERSON ? 'My' : 'Our'))} Slide Library">
+	
+	<mx:Script>
+		<![CDATA[
+			import org.ten.classes.DataShop;
+			import mx.events.ListEvent;
+			import org.ten.classes.User;
+			import org.ten.classes.Slide;
+			
+			[Bindable]
+			/**
+			 * @private
+			 * Our reference to the data shop.
+			 */
+			private var dataShop:DataShop = DataShop.getInstance();
+			
+			/**
+			 * @private
+			 * Handles the click in the list by 
+			 * showing information about that slide 
+			 * in the view panel.
+			 */
+			private function handleSelection(event:Event):void
+			{
+				// switch the the management views
+				libraryStack.selectedChild = managementViews;
+				
+				// default to the view information part
+				managementViews.selectedChild = viewPanel;
+				viewPanel.slide = slideList.selectedItem as Slide;
+			}
+			
+			/**
+			 * @private
+			 * Handles the edit button function that will be 
+			 * passed to the view panel.
+			 */
+			private function editButtonHandler():void
+			{
+				editPanel.slide = viewPanel.slide;
+				managementViews.selectedChild = editPanel;
+			}
+			
+			/**
+			 * @private
+			 * Handles the back functions when buttons in
+			 * the edit panel request to return to the
+			 * view panel.
+			 */
+			private function backButtonHandler():void
+			{
+				if(editPanel.slide.id > 0)
+				{
+					viewPanel.slide = editPanel.slide;
+				}
+				else
+				{
+					viewPanel.slide = null;
+				}
+				managementViews.selectedChild = viewPanel;
+			}
+			
+			/**
+			 * @private
+			 * Handles the New button click by switching
+			 * views so we can create a new slide.
+			 */
+			private function newButtonHandler():void
+			{
+				// switch to the mangement view
+				libraryStack.selectedChild = managementViews;
+				
+				// show the edit panel in the management view
+				editPanel.slide = new Slide();
+				managementViews.selectedChild = editPanel;
+			}
+			
+			/**
+			 * @private
+			 * Handles the back to library functions when 
+			 * the view panel's back button is clicked.
+			 */
+			private function backToLibraryHandler():void
+			{
+				// back to the library!
+				libraryStack.selectedChild = libraryPanel;
+			}
+		]]>
+	</mx:Script>
+	
+	<!-- Display Elements -->
+	<mx:ViewStack id="libraryStack" height="100%" width="100%">
+		<mx:Panel id="libraryPanel" title="Stored Slide Library" height="100%" width="100%"
+			showEffect="{flipperRight}" hideEffect="{flipperLeft}">
+			<mx:TileList id="slideList" dataProvider="{dataShop.mySlides}" height="100%" width="100%"
+				itemRenderer="org.ten.slideManagement.SlideItemRenderer" backgroundAlpha="0.0"
+				doubleClick="handleSelection(event)"/>
+			
+			<mx:ControlBar>
+				<mx:Button label="View Slide Information" click="handleSelection(event)"
+					enabled="{slideList.selectedIndex >= 0}"/>
+				<mx:Button label="New Slide" click="newButtonHandler()"/>
+			</mx:ControlBar>
+		</mx:Panel>
+		
+		<mx:ViewStack id="managementViews" height="100%" width="100%"
+			showEffect="{flipperLeft}" hideEffect="{flipperRight}">
+			<slide:ViewSlidePanel id="viewPanel" editButtonFunction="{editButtonHandler}"
+				backButtonFunction="{backToLibraryHandler}" hideEffect="{fader}" showEffect="{fader}"/>
+			<slide:CreateEditSlidePanel id="editPanel" backFunction="{backButtonHandler}"
+				hideEffect="{fader}" showEffect="{fader}" backToLibraryFunction="{backToLibraryHandler}"/>
+		</mx:ViewStack>
+	</mx:ViewStack>
+	
+	
+	<!-- Effects -->
+	<efflex:Fade id="fader" transparent="true" duration="500"/>
+	<!--<efflex:FlipPapervision3D id="flipperLeft" numSegmentsHeight="6" numSegmentsWidth="3" 
+		duration="700" transparent="true" direction="left"/>
+	<efflex:FlipPapervision3D id="flipperRight" numSegmentsHeight="6" numSegmentsWidth="6" 
+		duration="700" transparent="true" direction="right"/>-->
+	
+</mx:HBox>

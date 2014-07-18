@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:Canvas xmlns:mx="http://www.adobe.com/2006/mxml" 
+	width="{slideImage.width + 70}" height="{slideImage.height + 47.5}" horizontalScrollPolicy="off"
+	verticalScrollPolicy="off" initialize="listenForScale()">
+	
+	<mx:Script>
+		<![CDATA[
+			import mx.core.UIComponent;
+			import mx.controls.TileList;
+			import mx.controls.Alert;
+			import org.ten.events.SlideEvent;
+			import org.ten.classes.Slide;
+			
+			/**
+			 * @private
+			 * Adds a listener to the parent to wait 
+			 * for a change in the scale size.
+			 */
+			private function listenForScale():void
+			{
+				this.parent.parent.addEventListener(SlideEvent.SLIDE_PREVIEW_SCALE, scaleMe);
+			}
+			
+			/**
+			 * @private
+			 * Handles a scale by increasing or deacresing the size of the slide.
+			 */
+			private function scaleMe(event:SlideEvent):void
+			{
+				// change the size and commit
+				slideImage.width = 1165 * event.scale;
+				slideImage.height = 728 * event.scale;
+				this.validateNow();
+			}
+		]]>
+	</mx:Script>
+	
+	<mx:VBox horizontalAlign="center" verticalAlign="middle" 
+		width="100%" height="100%">
+		<mx:Image id="slideImage" width="116.5" height="72.8" 
+			source="{(data == null || data.fileLocation == '' ? '' :  'http://ten.mcgilleus.ca/tenapp/slides/' + data.fileLocation)}" />
+		<mx:Label text="{data.slideName}" styleName="rendererHeader" 
+			truncateToFit="true" maxWidth="270" width="100%" textAlign="center"/>
+		<mx:Label text="{(data.approvalState == Slide.APPROVAL_ACCEPTED ? 'Currently On Display' : data.approvalState)}" 
+			truncateToFit="true" maxWidth="270" width="100%" textAlign="center"/>
+	</mx:VBox>
+</mx:Canvas>

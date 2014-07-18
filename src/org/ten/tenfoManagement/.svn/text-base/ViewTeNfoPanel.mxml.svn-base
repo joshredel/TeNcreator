@@ -1,0 +1,104 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:Panel xmlns:mx="http://www.adobe.com/2006/mxml"
+	layout="absolute" width="100%" height="100%"
+	title="View Ticker Content Information">
+	
+	<mx:Script>
+		<![CDATA[
+			import org.ten.classes.TeNfo;
+			import mx.core.Application;
+			import org.ten.classes.Client;
+			import mx.managers.PopUpManager;
+			import org.ten.components.ConfirmationWindow;
+			import com.adobe.utils.DictionaryUtil;
+			
+			[Bindable]
+			/**
+			 * The reference to the TeNfo we are viewing.
+			 */
+			public var tenfo:TeNfo	;
+			
+			/**
+			 * The function that will be called when
+			 * the edit button is clicked.
+			 */
+			public var editButtonFunction:Function;
+			
+			/**
+			 * @private
+			 * Handles the Edit button click.
+			 */
+			private function editButtonHandler():void
+			{
+				try
+				{
+					editButtonFunction();
+				}
+				catch(err:Error)
+				{
+					// too bad, there was no function...
+				}
+			}
+			
+			/**
+			 * @private
+			 * Handles the Delete button click by asking
+			 * the user if they are sure they wish
+			 * to delete the TeNfo.
+			 */
+			private function deleteButtonHandler():void
+			{
+				// ask them if they want to delete
+				var window:ConfirmationWindow = PopUpManager.createPopUp(Application.application as DisplayObject, ConfirmationWindow, true) as ConfirmationWindow;
+				window.text = "Are you sure you wish to delete this ticker content?  The action is irreversible.";
+				window.yesFunction = completeDeleteTeNfo;
+			}
+			
+			/**
+			 * @private
+			 * Deletes the user upon confirmation.
+			 */
+			private function completeDeleteTeNfo():void
+			{
+				TeNfo.deleteTeNfo(tenfo);
+				tenfo = null;
+			}
+		]]>
+	</mx:Script>
+	
+	<!-- Formatters -->
+	<mx:DateFormatter id="dateFormatter" formatString="EEEE, MMM. D, YYYY at J:NN"/>
+	
+	<!-- Display Objects -->
+	<mx:Form visible="{tenfo != null}">
+		<mx:FormHeading label="Ticker Content Information"/>
+		
+		<mx:FormItem label="Content:">
+			<mx:Text text="{tenfo.content}" width="300" height="150"/>
+		</mx:FormItem>
+		
+		<mx:FormItem label="Visible on:">
+			<mx:List width="300" height="210" dataProvider="{tenfo.clients}"
+				itemRenderer="org.ten.clientManagement.ClientItemRenderer" selectable="false"/>
+		</mx:FormItem>
+		
+		<mx:FormItem label="Publish State:">
+			<mx:Label text="{tenfo.publishState}"/>
+		</mx:FormItem>
+		
+		<mx:FormItem label="Publish Dates:" includeInLayout="{tenfo.publishState == TeNfo.PUBLISHED_DATE_RANGE}"
+			visible="{tenfo.publishState == TeNfo.PUBLISHED_DATE_RANGE}">
+			<mx:Label text="{dateFormatter.format(tenfo.publishStartDate)} to {dateFormatter.format(tenfo.publishEndDate)}"/>
+		</mx:FormItem>
+		
+		<mx:FormItem label="Approval State:">
+			<mx:Label text="{tenfo.approvalState}"/>
+		</mx:FormItem>
+	</mx:Form>
+	
+	<mx:ControlBar width="100%" includeInLayout="{tenfo != null}" visible="{tenfo != null}">
+		<mx:Button label="Edit Content" click="editButtonHandler()"/>
+		<mx:Button label="Delete Content" click="deleteButtonHandler()"/>
+	</mx:ControlBar>
+	
+</mx:Panel>

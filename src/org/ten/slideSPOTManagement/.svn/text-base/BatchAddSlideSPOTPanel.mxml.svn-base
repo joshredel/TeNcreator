@@ -1,0 +1,390 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:Panel xmlns:mx="http://www.adobe.com/2006/mxml" 
+	xmlns:components="org.ten.components.*"
+	layout="absolute" width="100%" height="100%"
+	title="Batch Upload Slides">
+	
+	<mx:Script>
+		<![CDATA[
+			import org.ten.classes.DataShop;
+			import org.ten.classes.Slide;
+			import mx.managers.DragManager;
+			import mx.core.DragSource;
+			import mx.controls.Alert;
+			import mx.events.DragEvent;
+			import mx.events.CalendarLayoutChangeEvent;
+			import mx.collections.ArrayCollection;
+			import org.ten.classes.Client;
+			import org.ten.classes.SlideSPOT;
+			
+			[Bindable]
+			/**
+			 * @private
+			 * Our reference to the data shop.
+			 */
+			private var dataShop:DataShop = DataShop.getInstance();
+			
+			[Bindable]
+			/**
+			 * @private
+			 * A collection of clients the batch uploaded slides 
+			 * will be displayed on.
+			 */
+			private var displayClients:ArrayCollection;
+			
+			[Bindable]
+			/**
+			 * @private
+			 * The publish state of the batch slides.
+			 */
+			private var publishState:String;
+			
+			/**
+			 * The function that will be called when we wish
+			 * to return to the view panel.
+			 */
+			public var backFunction:Function;
+			
+			/**
+			 * @private
+			 * Handles the Save and Finish button being clicked 
+			 * by saving all the information as appropriate and returning 
+			 * to the front view.
+			 */
+			private function saveButtonHandler():void
+			{
+				
+				
+				// and go back!
+				cancelButtonHandler();
+			}
+			
+			/**
+			 * @private
+			 * Handles the Cancel button being clicked 
+			 * by aborting changes and returning to the front view.
+			 */
+			private function cancelButtonHandler():void
+			{
+				try
+				{
+					backFunction();
+				}
+				catch(err:Error)
+				{
+					// too bad, no function!
+				}
+				
+				// call this so we can revert changes we may have made
+				SlideSPOT.getSlideSPOTs();
+			}
+			
+			/**
+			 * @private
+			 * Handles the Upload... button click by 
+			 * asking which file they would like to upload.
+			 */
+			private function uploadButtonHandler():void
+			{
+//				// make a list of filters
+//				var imageFilters:FileFilter = new FileFilter("Images (*.jpg, *.jpeg, *.gif, *.png)", "*.jpg; *.jpeg; *.gif; *.png");
+//				
+//				// browse for a file
+//				fileWaitingForUpload = new FileReference();
+//				
+//				// add all the event handlers
+//				fileWaitingForUpload.addEventListener(Event.SELECT, fileSelectHandler);
+//				fileWaitingForUpload.addEventListener(Event.OPEN, startProgressHandler);
+//				fileWaitingForUpload.addEventListener(DataEvent.UPLOAD_COMPLETE_DATA, uploadDataHandler);
+//				fileWaitingForUpload.addEventListener(SecurityErrorEvent.SECURITY_ERROR, securityErrorHandler);
+//				fileWaitingForUpload.addEventListener(HTTPStatusEvent.HTTP_STATUS, httpErrorHandler);
+//				fileWaitingForUpload.addEventListener(IOErrorEvent.IO_ERROR, ioErrorHandler);
+//				
+//				try
+//				{
+//					fileWaitingForUpload.browse([imageFilters]);
+//				}
+//				catch(error:Error)
+//				{
+//					Alert.show("Unable to browse for a file.  Please refresh the page and try again.", "Error:");
+//				}
+			}
+			
+			/**
+			 * @private
+			 * Handles the completion of a user selecting by
+			 * uploading that file.
+			 */
+			private function fileSelectHandler(event:Event):void
+			{
+//				// pass it a special name
+//				// so first let's get the file extension
+//				var parts:Array = fileWaitingForUpload.name.split(".");
+//				var extension:String = "";
+//				for(var i:Number = 1; i <= parts.length; i++)
+//				{
+//					if(i == parts.length && parts.length > 1)
+//					{
+//						extension = "." + parts[i - 1];
+//					}
+//				}
+//				
+//				var params:URLVariables = new URLVariables();
+//				params.dateBasedName = (new Date().getTime()).toString() + extension;
+//				slide.fileLocation = params.dateBasedName;
+//				
+//				var request:URLRequest = new URLRequest("http://ten.mcgilleus.ca/actions/UploadSlide.php")
+//				request.method = URLRequestMethod.POST;
+//				request.data = params;
+//				
+//				try
+//				{
+//					fileWaitingForUpload.upload(request);
+//				}
+//				catch (error:Error)
+//				{
+//					Alert.show("Unable to start uploading the file. Please refresh the page and try again.", "Error:");
+//				}
+			}
+			
+			/**
+			 * @private
+			 * Handles the start of the upload by starting the progress bar.
+			 */
+			private function startProgressHandler(event:Event):void
+			{
+//				// set the progress bar to show
+//				fileUploadStack.selectedChild = uploadProgressHolder;
+			}
+			
+			/**
+			 * @private
+			 * Handles data from the upload completion by checking the 
+			 * status of the upload and acting accordingly.
+			 */
+			private function uploadDataHandler(event:DataEvent):void
+			{
+//				var results:Array = event.data.split(":");
+//				if(results[0] == "FAIL")
+//				{
+//					fileUploadStack.selectedChild = uploadButtonHolder;
+//					slide.fileLocation = "";
+//					Alert.show(results[1], "Upload Error:");
+//				}
+//				else if(results[0] == "PASS")
+//				{
+//					fileUploadStack.selectedChild = uploadPreviewHolder;
+//					Alert.show(results[1], "Upload Successfull:");
+//				}
+			}
+			
+			/**
+			 * @private
+			 * Handles a security error during the upload.
+			 */
+			private function securityErrorHandler(event:SecurityErrorEvent):void
+			{
+//				fileUploadStack.selectedChild = uploadButtonHolder;
+//				Alert.show("A security error occured while uploading your file.  Please contact ten@mcgilleus.ca.", "Error:");
+			}
+			
+			/**
+			 * @private
+			 * Handles an issue with the HTTP connection.
+			 */
+			private function httpErrorHandler(event:HTTPStatusEvent):void
+			{
+//				fileUploadStack.selectedChild = uploadButtonHolder;
+//				Alert.show("An HTTP error occured while uploading your file.  Please contact ten@mcgilleus.ca", "Error:");
+			}
+			
+			/**
+			 * @private
+			 * Handles an I/O error on the server side.
+			 */
+			private function ioErrorHandler(event:IOErrorEvent):void
+			{
+//				fileUploadStack.selectedChild = uploadButtonHolder;
+//				Alert.show("An error occured storing the file on our servers during upload.  Please contact ten@mcgilleus.ca", "Error:");
+			}
+			
+			/**
+			 * @private
+			 * Handles a drag enter event on the slide's client 
+			 * list by checking to see if we can drop a client.
+			 */
+			private function dragEnterHandler(event:DragEvent):void
+			{
+				// get the drag data
+				var source:DragSource = event.dragSource;
+				var dragData:Array = source.dataForFormat("items") as Array;
+				
+				// see if we have all of the items already
+				var seenCount:Number = 0;
+				
+				for each(var client:Client in dragData)
+				{
+					if(displayClients.contains(client))
+					{
+						seenCount++;
+					}
+				}
+				
+				// if we get here, there were only a few repeats
+				if(seenCount < dragData.length)
+				{
+					DragManager.acceptDragDrop(batchClients);
+					DragManager.showFeedback(DragManager.COPY);
+				}
+			}
+			
+			/**
+			 * @private
+			 * Handles a drag drop event by adding the client(s) to 
+			 * the slide.
+			 */
+			private function dragDropHandler(event:DragEvent):void
+			{
+				// get the drag data
+				var source:DragSource = event.dragSource;
+				var dragData:Array = source.dataForFormat("items") as Array;
+				
+				// add the items
+				for each(var client:Client in dragData)
+				{
+					if(!displayClients.contains(client))
+					{
+						displayClients.addItem(client);
+					}
+				}
+			}
+			
+			/**
+			 * @private
+			 * Handles the completion of creation of the start
+			 * date selector by listening for a change in the date.
+			 */
+			private function startDateCreatedHandler():void
+			{
+				batchPublishStartDate.addEventListener(CalendarLayoutChangeEvent.CHANGE, selectPublishEndDate);
+			}
+			
+			/**
+			 * @private
+			 * Handles a change in the publish start date 
+			 * by forcing the end date to be equal to or 
+			 * greater than the start date.
+			 */
+			private function selectPublishEndDate(event:CalendarLayoutChangeEvent):void
+			{
+				if(batchPublishEndDate.selectedDate < batchPublishStartDate.selectedDate)
+				{
+					batchPublishEndDate.selectedDate = batchPublishStartDate.selectedDate;
+				}
+			}
+			
+			/**
+			 * @private
+			 * When the start date is selected, the end date cannot be before that;
+			 * this enforeces that.
+			 */
+			private function updateDisabledRanges(e:Event = null):void
+			{
+				var selectedDate:Date = batchPublishStartDate.selectedDate;
+					
+				if(selectedDate != null)
+				{
+					var startDate:Date = new Date();
+					startDate.setTime(0);
+					
+					var endDate:Date = new Date(selectedDate.fullYear, selectedDate.month, selectedDate.date, -1);
+					
+					batchPublishEndDate.disabledRanges = [{rangeStart: startDate, rangeEnd: endDate}];
+				}
+			}
+		]]>
+	</mx:Script>
+	
+	<mx:Form>
+		<mx:FormHeading label="SlideSPOT Batch Utilisation"/>
+		
+		<mx:FormItem label="Instructions:">
+			<mx:Label text="You have {dataShop.availableSlideSPOTs} SlideSPOT{(dataShop.availableSlideSPOTs == 1 ? '' : 's')} available to use for batch uploading.  Select your uploads accordingly!"/>
+		</mx:FormItem>
+		
+		<mx:FormItem label="Slide Names:" required="true">
+			<mx:Label text="Note: The name choosen will be the prefix.  The appropriate count will be added to this name (e.g. if the slide name is Test, Test 1, Test 2, etc. will be created)."/>
+			<mx:TextInput id="batchName"/>
+		</mx:FormItem>
+		
+		<mx:FormItem label="Visible on:" required="true">
+			<mx:HBox>
+				<mx:VBox>
+					<mx:Label text="Available Clients:"/>
+					<mx:List width="300" height="210" dataProvider="{dataShop.clients}"
+						itemRenderer="org.ten.clientManagement.ClientItemRenderer" 
+						dragEnabled="true" allowMultipleSelection="true"/>
+				</mx:VBox>
+				
+				<mx:VBox>
+					<mx:Label text="Display This Slide On:"/>
+					<mx:List id="batchClients" width="300" height="210" dataProvider="{displayClients}"
+						itemRenderer="org.ten.clientManagement.ClientItemRenderer" 
+						dragEnter="dragEnterHandler(event)" allowDragSelection="false" 
+						dragDrop="dragDropHandler(event)"/>
+				</mx:VBox>
+			</mx:HBox>
+		</mx:FormItem>
+		
+		<mx:FormItem label="Publish State:" required="true">
+			<mx:ComboBox id="batchPublishState" dataProvider="{Slide.PUBLISHED_STATES}" 
+				selectedIndex="{Slide.PUBLISHED_STATES.getItemIndex(publishState)}"
+				change="publishState = batchPublishState.selectedItem as String"/>
+		</mx:FormItem>
+		
+		<mx:FormItem label="Publish Dates:" includeInLayout="{publishState == Slide.PUBLISHED_DATE_RANGE}"
+			visible="{publishState == Slide.PUBLISHED_DATE_RANGE}" required="true" horizontalAlign="right">
+			<mx:HBox verticalAlign="middle">
+				<mx:Label text="From:"/>
+				<components:TimeEntry id="batchPublishStartTime" showSeconds="false" is24Hour="true"
+					backgroundColor="0x000000" backgroundAlpha="0.05" borderColor="0x999999"
+					borderThickness="1" borderStyle="solid" cornerRadius="5"/>
+				<mx:Label text="on"/>
+				<mx:DateField id="batchPublishStartDate" valueCommit="updateDisabledRanges()" 
+					creationComplete="startDateCreatedHandler()"/>
+			</mx:HBox>
+			<mx:HBox verticalAlign="middle">
+				<mx:Label text="Until:"/>
+				<components:TimeEntry id="batchPublishEndTime" showSeconds="false" is24Hour="true"
+					backgroundColor="0x000000" backgroundAlpha="0.05" borderColor="0x999999"
+					borderThickness="1" borderStyle="solid" cornerRadius="5"/>
+				<mx:Label text="on"/>
+				<mx:DateField id="batchPublishEndDate" formatString="MM/DD/YYYY"/>
+			</mx:HBox>
+		</mx:FormItem>
+		
+		<mx:FormItem label="File Upload:" required="true">
+			<mx:ViewStack id="fileUploadStack" resizeToContent="true">
+				<mx:Box id="uploadButtonHolder">
+					<mx:Button label="Upload..." click="uploadButtonHandler()"/>
+				</mx:Box>
+				
+				<mx:Box id="uploadProgressHolder">
+					<mx:ProgressBar id="uploadProgress" label="UPLOADING..." labelPlacement="center"  width="150"
+						source="{}" mode="event"/>
+				</mx:Box>
+				
+				<mx:VBox id="uploadPreviewHolder">
+					<mx:Button label="Upload a new file..." click="uploadButtonHandler()"/>
+					<mx:Image id="uploadPreview" source="{}"/>
+				</mx:VBox>
+			</mx:ViewStack>
+		</mx:FormItem>
+	</mx:Form>
+	
+	<mx:ControlBar width="100%">
+		<mx:Button label="Finish and Save" click="saveButtonHandler()"/>
+		<mx:Button label="Cancel Batch Upload" click="cancelButtonHandler()"/>
+	</mx:ControlBar>
+	
+</mx:Panel>

@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:Canvas xmlns:mx="http://www.adobe.com/2006/mxml" 
+	width="170" height="{(data.slide == null ? 30 : 110)}" horizontalScrollPolicy="off"
+	verticalScrollPolicy="off">
+	
+	<mx:Script>
+		<![CDATA[
+			import org.ten.classes.Slide;
+		]]>
+	</mx:Script>
+	
+	<mx:VBox horizontalAlign="center" verticalAlign="middle" 
+		width="100%" height="100%">
+		<mx:Image width="100" height="62.5" includeInLayout="{data.slide != null}" visible="{data.slide != null}" 
+			source="{(data.slide == null || data.slide.fileLocation == '' ? '' :  'http://ten.mcgilleus.ca/tenapp/slides/' + data.slide.fileLocation)}" />
+		<mx:Label text="{data.slide.slideName}" styleName="rendererHeader" 
+			truncateToFit="true" maxWidth="270" width="100%" textAlign="center"
+			includeInLayout="{data.slide != null}" visible="{data.slide != null}"/>
+		<mx:Label text="{(data.slide.approvalState == Slide.APPROVAL_ACCEPTED ? 'Currently On Display' : data.slide.approvalState)}" 
+			truncateToFit="true" maxWidth="270" width="100%" textAlign="center"
+			includeInLayout="{data.slide != null}" visible="{data.slide != null}"/>
+		<mx:Label text="Unused SlideSPOT" 
+			includeInLayout="{data.slide == null}" visible="{data.slide == null}"/>
+	</mx:VBox>
+</mx:Canvas>
+
+<!--<?xml version="1.0" encoding="utf-8"?>
+<mx:Canvas xmlns:mx="http://www.adobe.com/2006/mxml" 
+	width="100%" height="42" horizontalScrollPolicy="off"
+	verticalScrollPolicy="off">
+	<mx:VBox>
+		<mx:Label text="{'Ordering Position: ' + (data.orderRank == -1 ? 'End' : data.orderRank)}" 
+			styleName="rendererHeader" 
+			truncateToFit="true" maxWidth="170"/>
+		<mx:Label text="{(data.slide == null ? 'Unused' : 'Used: ' + data.slide.slideName)}" 
+			truncateToFit="true" maxWidth="170"/>
+	</mx:VBox>
+</mx:Canvas>-->

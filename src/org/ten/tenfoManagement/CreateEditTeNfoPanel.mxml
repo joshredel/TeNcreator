@@ -1,0 +1,380 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:Panel xmlns:mx="http://www.adobe.com/2006/mxml"
+	xmlns:components="org.ten.components.*"
+	layout="absolute" width="100%" height="100%"
+	title="Modify Ticker Content Information" show="updateStates()">
+	
+	<mx:Script>
+		<![CDATA[
+			import mx.controls.Alert;
+			import mx.collections.ArrayCollection;
+			import org.ten.classes.DataShop;
+			import mx.managers.DragManager;
+			import mx.core.DragSource;
+			import mx.events.CalendarLayoutChangeEvent;
+			import mx.events.DragEvent;
+			import org.ten.classes.TeNfo;
+			import mx.core.Application;
+			import org.ten.classes.Client;
+			import mx.managers.PopUpManager;
+			import org.ten.components.ConfirmationWindow;
+			import com.adobe.crypto.SHA1;
+			import com.adobe.utils.DictionaryUtil;
+			
+			[Bindable]
+			/**
+			 * @private
+			 * Our reference to the data shop.
+			 */
+			private var dataShop:DataShop = DataShop.getInstance();
+			
+			[Bindable]
+			/**
+			 * The reference to the TeNfo we are viewing.
+			 */
+			public var tenfo:TeNfo;
+			
+			/**
+			 * The function that will be called when we wish
+			 * to return to the view panel.
+			 */
+			public var backFunction:Function;
+			
+			/**
+			 * @private
+			 * Handles the Save Changes button click
+			 * by saving the TeNfo to the database.
+			 */
+			private function saveButtonHandler():void
+			{
+				// check the form!
+				var missing:String = "";
+				
+				if(tenfoContent.text.length == 0)
+				{
+					missing += "- Text for the ticker content\n";
+				}
+				
+				if(tenfoClients.dataProvider.length == 0)
+				{
+					missing += "- Clients to display the ticker content on\n";
+				}
+				
+				if(missing.length > 0)
+				{
+					missing = "The following information is required but was missing:\n" + missing;
+					Alert.show(missing, "Invalid Ticker Content");
+					return;
+				}
+				
+				// save the tenfo (it's data should have been updated on change of values)
+				// ... but, we need to get the dates manually
+				if(tenfo.publishState == TeNfo.PUBLISHED_DATE_RANGE)
+				{
+					var startDate:Date = tenfoPublishStartDate.selectedDate;
+					var endDate:Date = tenfoPublishEndDate.selectedDate;
+					
+					var startTime:TimeEntry = tenfoPublishStartTime;
+					var endTime:TimeEntry = tenfoPublishEndTime;
+					
+					tenfo.publishStartDate = new Date(startDate.fullYear, startDate.month, startDate.date, startTime.hour, startTime.minute);
+					tenfo.publishEndDate = new Date(endDate.fullYear, endDate.month, endDate.date, endTime.hour, endTime.minute);
+				}
+				else
+				{
+					tenfo.publishStartDate = new Date();
+					tenfo.publishEndDate = new Date();
+				}
+				
+				//and set that the current user is the owner of this TeNfo
+				tenfo.owner = dataShop.currentUser;
+				
+				// save the TeNfo (it's data should have been updated on change of values)
+				TeNfo.saveTeNfo(tenfo);
+				
+				// and go back!
+				cancelButtonHandler();
+			}
+			
+			/**
+			 * @private
+			 * Handles the Cancel Changes button click 
+			 * by returning to the view panel.
+			 */
+			private function cancelButtonHandler():void
+			{
+				try
+				{
+					backFunction();
+				}
+				catch(err:Error)
+				{
+					// too bad, no function!
+				}
+				
+				// call this so we can revert changes we may have made
+				TeNfo.getTeNfos();
+			}
+			
+			/**
+			 * @private
+			 * Handles the Delete button click by asking
+			 * the user if they are sure they wish
+			 * to delete the user.
+			 */
+			private function deleteButtonHandler():void
+			{
+				// ask them if they want to delete
+				var window:ConfirmationWindow = PopUpManager.createPopUp(Application.application as DisplayObject, ConfirmationWindow, true) as ConfirmationWindow;
+				window.text = "Are you sure you wish to delete this ticker content?  The action is irreversible.";
+				window.yesFunction = completeDeleteTeNfo;
+			}
+			
+			/**
+			 * @private
+			 * Deletes the user upon confirmation.
+			 */
+			private function completeDeleteTeNfo():void
+			{
+				TeNfo.deleteTeNfo(tenfo);
+				
+				// setting id to 0 will tell the view pane to set the TeNfo to null
+				tenfo.id = 0;
+				try
+				{
+					backFunction();
+				}
+				catch(err:Error)
+				{}
+			}
+			
+			/**
+			 * @private
+			 * Handles a drag enter event on the TeNfo's client 
+			 * list by checking to see if we can drop a client.
+			 */
+			private function dragEnterHandler(event:DragEvent):void
+			{
+				// get the drag data
+				var source:DragSource = event.dragSource;
+				var dragData:Array = source.dataForFormat("items") as Array;
+				
+				// see if we have all of the items already
+				var seenCount:Number = 0;
+				
+				for each(var client:Client in dragData)
+				{
+					if(tenfo.clients.contains(client))
+					{
+						seenCount++;
+					}
+				}
+				
+				// if we get here, there were only a few repeats
+				if(seenCount < dragData.length)
+				{
+					DragManager.acceptDragDrop(tenfoClients);
+					DragManager.showFeedback(DragManager.COPY);
+				}
+			}
+			
+			/**
+			 * @private
+			 * Handles a drag drop event by adding the client(s) to 
+			 * the TeMfo.
+			 */
+			private function dragDropHandler(event:DragEvent):void
+			{
+				// get the drag data
+				var source:DragSource = event.dragSource;
+				var dragData:Array = source.dataForFormat("items") as Array;
+				
+				// add the items
+				for each(var client:Client in dragData)
+				{
+					if(!tenfo.clients.contains(client))
+					{
+						tenfo.clients.addItem(client);
+					}
+				}
+			}
+			
+			/**
+			 * @private
+			 * Handles the completion of creation of the start
+			 * date selector by listening for a change in the date.
+			 */
+			private function startDateCreatedHandler():void
+			{
+				tenfoPublishStartDate.addEventListener(CalendarLayoutChangeEvent.CHANGE, selectPublishEndDate);
+			}
+			
+			/**
+			 * @private
+			 * Handles a change in the publish start date 
+			 * by forcing the end date to be equal to or 
+			 * greater than the start date.
+			 */
+			private function selectPublishEndDate(event:CalendarLayoutChangeEvent):void
+			{
+				if(tenfoPublishEndDate.selectedDate < tenfoPublishStartDate.selectedDate)
+				{
+					tenfoPublishEndDate.selectedDate = tenfoPublishStartDate.selectedDate;
+				}
+			}
+			
+			/**
+			 * @private
+			 * When the start date is selected, the end date cannot be before that;
+			 * this enforeces that.
+			 */
+			private function updateDisabledRanges(e:Event = null):void
+			{
+				if(tenfoPublishStartDate && tenfoPublishEndDate)
+				{
+					var selectedDate:Date = tenfoPublishStartDate.selectedDate;
+						
+					if(selectedDate != null)
+					{
+						var startDate:Date = new Date();
+						startDate.setTime(0);
+						
+						var endDate:Date = new Date(selectedDate.fullYear, selectedDate.month, selectedDate.date, -1);
+						
+						tenfoPublishEndDate.disabledRanges = [{rangeStart: startDate, rangeEnd: endDate}];
+					}
+				}
+			}
+			
+			/**
+			 * @private
+			 * Checks to see if we have a valid TeNfo and if so 
+			 * checks to see what state the upload is in so the 
+			 * display matches.  Also makes sure date fields display properly.
+			 */
+			private function updateStates():void
+			{
+				// update the dates and times
+				if(tenfo != null)
+				{
+					if(!tenfo.publishStartDate)
+					{
+						tenfo.publishStartDate = new Date();
+					}
+					if(tenfoPublishStartTime != null)
+					{
+						tenfoPublishStartTime.validateNow();
+						tenfoPublishStartTime.hour = tenfo.publishStartDate.getHours();
+						tenfoPublishStartTime.minute = tenfo.publishStartDate.getMinutes();
+					}
+					
+					if(tenfoPublishStartDate != null)
+					{
+						tenfoPublishStartDate.selectedDate = tenfo.publishStartDate;
+					}
+					
+					if(!tenfo.publishEndDate)
+					{
+						tenfo.publishEndDate = new Date();
+					}
+					if(tenfoPublishEndTime != null)
+					{
+						tenfoPublishEndTime.validateNow();
+						tenfoPublishEndTime.hour = tenfo.publishEndDate.getHours();
+						tenfoPublishEndTime.minute = tenfo.publishEndDate.getMinutes()
+					}
+					
+					if(tenfoPublishEndDate != null)
+					{
+						tenfoPublishEndDate.selectedDate = tenfo.publishEndDate;
+					}
+				}
+			}
+			
+			/**
+			 * @private
+			 * Converts a 'x seconds' string into x as a number.
+			 * @param text the string containing the seconds
+			 */
+			private function secondsStringToNumber(text:String):Number
+			{
+				// pull apart the string; the number is the first element
+				var parts:Array = text.split(" ");
+				var value:Number = Number(parts[0]) * 1000;
+				
+				return value;
+			}
+		]]>
+	</mx:Script>
+	
+	<mx:Form visible="{tenfo != null}">
+		<mx:FormHeading label="Ticker Content Information"/>
+		
+		<mx:FormItem label="Content:" required="true">
+			<mx:TextArea id="tenfoContent" width="400" height="150" maxChars="200"
+				text="{tenfo.content}" change="tenfo.content = tenfoContent.text"/>
+		</mx:FormItem>
+		
+		<mx:FormItem label="Visible on:" required="true">
+			<mx:HBox>
+				<mx:VBox>
+					<mx:Label text="Available Clients:"/>
+					<mx:List width="300" height="210" dataProvider="{dataShop.clients}"
+						itemRenderer="org.ten.clientManagement.ClientItemRenderer" 
+						dragEnabled="true" allowMultipleSelection="true"/>
+				</mx:VBox>
+				
+				<mx:VBox>
+					<mx:Label text="Display This Content On:"/>
+					<mx:List id="tenfoClients" width="300" height="210" dataProvider="{tenfo.clients}"
+						itemRenderer="org.ten.clientManagement.ClientItemRenderer" 
+						dragEnter="dragEnterHandler(event)" allowDragSelection="false" 
+						dragDrop="dragDropHandler(event)"/>
+					<mx:Button label="Clear" click="tenfo.clients = new ArrayCollection()" enabled="{tenfo.clients.length > 0}"/>
+				</mx:VBox>
+			</mx:HBox>
+		</mx:FormItem>
+		
+		<mx:FormItem label="Publish State:" required="true">
+			<mx:ComboBox id="tenfoPublishState" dataProvider="{TeNfo.PUBLISHED_STATES}" 
+				selectedIndex="{TeNfo.PUBLISHED_STATES.getItemIndex(tenfo.publishState)}"
+				change="tenfo.publishState = tenfoPublishState.selectedItem as String"/>
+		</mx:FormItem>
+		
+		<mx:FormItem label="Publish Dates:" includeInLayout="{tenfo.publishState == TeNfo.PUBLISHED_DATE_RANGE}"
+			visible="{tenfo.publishState == TeNfo.PUBLISHED_DATE_RANGE}" required="true" horizontalAlign="right">
+			<mx:HBox verticalAlign="middle">
+				<mx:Label text="From:"/>
+				<components:TimeEntry id="tenfoPublishStartTime" showSeconds="false" is24Hour="true"
+					backgroundColor="0x000000" backgroundAlpha="0.05" borderColor="0x999999"
+					borderThickness="1" borderStyle="solid" cornerRadius="5" hour="{tenfo.publishStartDate.getHours()}"
+					minute="{tenfo.publishStartDate.getMinutes()}"/>
+				<mx:Label text="on"/>
+				<mx:DateField id="tenfoPublishStartDate" valueCommit="updateDisabledRanges()" 
+					creationComplete="startDateCreatedHandler()" selectedDate="{new Date()}"/>
+			</mx:HBox>
+			<mx:HBox verticalAlign="middle">
+				<mx:Label text="Until:"/>
+				<components:TimeEntry id="tenfoPublishEndTime" showSeconds="false" is24Hour="true"
+					backgroundColor="0x000000" backgroundAlpha="0.05" borderColor="0x999999"
+					borderThickness="1" borderStyle="solid" cornerRadius="5" hour="{tenfo.publishEndDate.getHours()}"
+					minute="{tenfo.publishEndDate.getMinutes()}"/>
+				<mx:Label text="on"/>
+				<mx:DateField id="tenfoPublishEndDate" formatString="MM/DD/YYYY" selectedDate="{new Date()}"/>
+			</mx:HBox>
+		</mx:FormItem>
+		
+		<mx:FormItem label="Approval State:">
+			<mx:Label text="{tenfo.approvalState}"/>
+			<!-- here we will have the response area so they can respond to statuses -->
+		</mx:FormItem>
+	</mx:Form>
+	
+	<mx:ControlBar width="100%">
+		<mx:Button label="{(tenfo.id == 0 ? 'Create Content' : 'Save Changes')}" click="saveButtonHandler()"/>
+		<mx:Button label="Cancel Changes" click="cancelButtonHandler()"/>
+		<mx:Button label="Delete Content" click="deleteButtonHandler()" 
+			includeInLayout="{tenfo.id > 0}" visible="{tenfo.id > 0}"/>
+	</mx:ControlBar>
+	
+</mx:Panel>

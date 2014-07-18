@@ -1,0 +1,157 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:Panel xmlns:mx="http://www.adobe.com/2006/mxml"
+	xmlns:efflex="org.efflex.mx.viewStackEffects.*" 
+	layout="absolute" width="100%" height="100%"
+	title="View User Information">
+	
+	<mx:Script>
+		<![CDATA[
+			import mx.core.Application;
+			import mx.managers.PopUpManager;
+			import org.ten.components.ConfirmationWindow;
+			import com.adobe.utils.DictionaryUtil;
+			import org.ten.classes.SlideSPOT;
+			import org.ten.classes.User;
+			
+			[Bindable]
+			/**
+			 * The reference to the user we are viewing.
+			 */
+			public var user:User;
+			
+			/**
+			 * The function that will be called when
+			 * the edit button is clicked.
+			 */
+			public var editButtonFunction:Function;
+			
+			/**
+			 * @private
+			 * Calls for the creation of a new SlideSPOT.  Creates a standard
+			 * SlideSPOT but points it to the user which is being viewed.
+			 */
+			private function addSlideSPOT():void
+			{
+				// create the SlideSPOT and associate it to this user
+				var newSpot:SlideSPOT = new SlideSPOT();
+				newSpot.owner = user;
+				
+				// save the SlideSPOT, it will be added to the user once the server creates it
+				SlideSPOT.saveSlideSPOT(newSpot);
+			}
+			
+			/**
+			 * @private
+			 * Calls for the deletion of the selected SlideSPOT in the list.
+			 */
+			private function deleteSlideSPOT():void
+			{
+				SlideSPOT.deleteSlideSPOT(spotList.selectedItem as SlideSPOT);
+			}
+			
+			/**
+			 * @private
+			 * Handles the Edit button click.
+			 */
+			private function editButtonHandler():void
+			{
+				try
+				{
+					editButtonFunction();
+				}
+				catch(err:Error)
+				{
+					// too bad, there was no function...
+				}
+			}
+			
+			/**
+			 * @private
+			 * Handles the Delete button click by asking
+			 * the user if they are sure they wish
+			 * to delete the user.
+			 */
+			private function deleteButtonHandler():void
+			{
+				// ask them if they want to delete
+				var window:ConfirmationWindow = PopUpManager.createPopUp(Application.application as DisplayObject, ConfirmationWindow, true) as ConfirmationWindow;
+				window.text = "Are you sure you wish to delete this user?  The action is irreversible.";
+				window.yesFunction = completeDeleteUser;
+			}
+			
+			/**
+			 * @private
+			 * Deletes the user upon confirmation.
+			 */
+			private function completeDeleteUser():void
+			{
+				User.deleteUser(user);
+				user = null;
+			}
+		]]>
+	</mx:Script>
+	
+	<mx:Form visible="{user != null}">
+		<mx:FormHeading label="User Information"/>
+		
+		<mx:FormItem label="Username:">
+			<mx:Label text="{user.username}"/>
+		</mx:FormItem>
+		
+		<mx:FormItem label="User Type:">
+			<mx:Label text="{user.type}"/>
+		</mx:FormItem>
+		
+		<mx:FormItem label="Privileges:">
+			<mx:Label text="{(user.isAdministrator ? 'Administrative User' : 'General User')}"/>
+		</mx:FormItem>
+		
+		<mx:FormItem label="Submissions Require Approval:" 
+			includeInLayout="{!user.isAdministrator}" visible="{!user.isAdministrator}">
+			<mx:Label text="{user.requiresApproval ? 'Yes' : 'No'}"/>
+		</mx:FormItem>
+		
+		<mx:FormItem label="Can Do Screen Take-Over:">
+			<mx:Label text="{user.canTakeOver ? 'Yes' : 'No'}"/>
+		</mx:FormItem>
+		
+		<mx:FormItem label="Can Change Duration Time:">
+			<mx:Label text="{user.canChooseDurationTime ? 'Yes' : 'No'}"/>
+		</mx:FormItem>
+		
+		<mx:FormItem id="spotLabel" label="SlideSPOTs:">
+			<mx:Canvas width="100%" height="100%" backgroundColor="0x141414">
+				<mx:ViewStack id="spotStack" creationPolicy="all" resizeToContent="true">
+					<mx:VBox id="spotCountBox" width="210" height="370" backgroundColor="0xFFFFFF" 
+						showEffect="{flipperRight}" hideEffect="{flipperLeft}">
+						<mx:Label text="{user.slideSPOTs.length + ' SlideSPOTs allocated'}"/>
+						<mx:Button label="Manage SlideSPOTs" click="spotStack.selectedChild = spotManagerBox"/>
+					</mx:VBox>
+					
+					<mx:VBox id="spotManagerBox" width="210" height="370" backgroundColor="0xFFFFFF" 
+						showEffect="{flipperLeft}" hideEffect="{flipperRight}">
+						<mx:List id="spotList" dataProvider="{user.slideSPOTs}" 
+							width="200" height="310" itemRenderer="org.ten.slideSPOTManagement.SlideSPOTItemRenderer"/>
+						<mx:HBox>
+							<mx:Button label="New" click="addSlideSPOT()"/>
+							<mx:Button label="Arrange"/>
+							<mx:Button label="Delete" click="deleteSlideSPOT()" 
+								enabled="{spotList.selectedItem != null}"/>
+						</mx:HBox>
+						<mx:Button label="Done" click="spotStack.selectedChild = spotCountBox"/>
+					</mx:VBox>
+				</mx:ViewStack>
+			</mx:Canvas>
+		</mx:FormItem>
+	</mx:Form>
+	
+	<mx:ControlBar width="100%" includeInLayout="{user != null}" visible="{user != null}">
+		<mx:Button label="Edit User" click="editButtonHandler()"/>
+		<mx:Button label="Delete User" click="deleteButtonHandler()"/>
+	</mx:ControlBar>
+	
+	<!-- Effects -->
+	<efflex:FlipPapervision3D id="flipperLeft" direction="left" numSegmentsHeight="6" numSegmentsWidth="6"/>
+	<efflex:FlipPapervision3D id="flipperRight" direction="right" numSegmentsHeight="6" numSegmentsWidth="6"/>
+	
+</mx:Panel>

@@ -1,0 +1,171 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:Application xmlns:mx="http://www.adobe.com/2006/mxml" 
+	xmlns:local="org.ten.*" 
+	xmlns:ac="com.adobe.ac.*" 
+	xmlns:components="org.ten.components.*" 
+	layout="absolute" initialize="onInit()"
+	backgroundImage="@Embed('assets/background.jpg')"
+	frameRate="60" creationComplete="created = true;">
+	
+	<!-- Style (css) -->
+	<mx:Style source="assets/style.css"/>
+	
+	<mx:Script>
+		<![CDATA[
+			import com.adobe.crypto.SHA1;
+			import org.ten.classes.DataShop;
+			import mx.binding.utils.BindingUtils;
+			import org.ten.events.LoginEvent;
+			import mx.controls.Alert;
+			import mx.binding.utils.ChangeWatcher;
+			import mx.events.PropertyChangeEvent;
+			import org.ten.ClientManagement;
+			import org.ten.UserManagement;
+			import org.ten.SlideManagement;
+			import org.ten.SlideSPOTManagement;
+			import org.ten.classes.Slide;
+			import org.ten.classes.TeNfo;
+			import org.ten.classes.Client;
+			import org.ten.classes.SlideSPOT;
+			import org.ten.components.LoginWindow;
+			import org.ten.classes.User;
+			import mx.managers.PopUpManager;
+			
+			[Bindable]
+			/**
+			 * @private
+			 * Our reference to the data shop.
+			 */
+			private var dataShop:DataShop = DataShop.getInstance();
+			
+			[Bindable]
+			/**
+			 * Marks whether or not all DisplayObjects have been rendered.
+			 */
+			private var created:Boolean = false;
+			
+			/**
+			 *  Dispatch a session event to view the current session on application intialize.
+			 */
+			private function onInit():void
+			{
+				// watch for changes in the logged in/logged out state
+				//ChangeWatcher.watch(dataShop, "userLoggedIn", changeEnabledState);
+				
+				// check for a session
+				User.checkForSession();
+				
+				// let stuff move around well
+				Security.allowDomain("*");
+			}
+			
+			/**
+			 * @private
+			 * Handles changes in the user logged in and matches 
+			 * the visibility of the application accordingly.
+			 */
+			public function changeEnabledState(event:Event = null):void
+			{
+				if(created)
+				{
+					if(dataShop.userLoggedIn == true)
+					{
+						// see if they have a temp password
+						if(dataShop.currentUser.password == SHA1.hash("temp"))
+						{
+							// ask them to change their password
+							loginStack.selectedChild = changePasswordView;
+							Alert.show("You were assigned a temporary password.  Please enter a new password.", "Change Password");
+						}
+						else
+						{
+							// proceed as normal
+							// now show our central view area
+							if(dataShop.currentUser.isAdministrator)
+							{
+								loginStack.selectedChild = adminTaskStack;
+								linkBar.dataProvider = adminTaskStack;
+								//Alert.show("admin user!");
+							}
+							else
+							{
+								loginStack.selectedChild = generalTaskStack;
+								linkBar.dataProvider = generalTaskStack;
+								//Alert.show("general user!");
+							}
+							
+							// get everything!
+							User.getUsers();
+							Slide.getSlides();
+							SlideSPOT.getSlideSPOTs();
+							Client.getClients();
+							TeNfo.getTeNfos();
+						}
+					}
+					else
+					{
+						// show the login window and clear errors strings
+						loginStack.selectedChild = loginView;
+						loginWindow.username.text = "";
+						loginWindow.username.errorString = "";
+						loginWindow.password.text = "";
+						loginWindow.password.errorString = "";
+					}
+				}
+				else
+				{
+					if(dataShop.userLoggedIn)
+					{
+						// the user has been logged in via a session capture, 
+						// but the stage was not ready
+						callLater(changeEnabledState);
+					}
+				}
+			}
+		]]>
+	</mx:Script>
+	
+	<!-- Observers -->
+	<ac:ObserveValue id="observeLoginPassed" source="{dataShop.userLoggedIn}" value="{true}" handler="changeEnabledState"/>
+	<ac:ObserveValue id="observeLoginFailed" source="{dataShop.userLoggedIn}" value="{false}" handler="changeEnabledState"/>
+	
+	<!-- Display Objects -->
+	<mx:ApplicationControlBar id="appControlBar" dock="true">
+		<mx:Label text="{(dataShop.currentUser == null ? 'Not logged in' : 'Welcome to TeNcreator, ' + dataShop.currentUser.username + '!')}"/>
+		
+		<mx:LinkBar id="linkBar" visible="{dataShop.userLoggedIn}" />
+			<!--dataProvider="{loginStack.selectedChild}"/>-->
+		
+		<mx:Spacer width="100%"/>
+		
+		<mx:LinkButton label="Log Out" click="User.logout()" 
+			visible="{dataShop.userLoggedIn}" includeInLayout="{dataShop.userLoggedIn}"/>
+	</mx:ApplicationControlBar>
+	
+	<mx:ViewStack id="loginStack" height="100%" width="100%" creationPolicy="all">
+		<!--selectedChild="{(dataShop.userLoggedIn ? (dataShop.currentUser.isAdministrator ? adminTaskStack : generalTaskStack) : loginView)}">-->
+		<mx:Box id="loginView" horizontalAlign="center" verticalAlign="middle">
+			<components:LoginWindow id="loginWindow"/>
+		</mx:Box>
+		
+		<mx:Box id="changePasswordView" horizontalAlign="center" verticalAlign="middle">
+			<components:ChangePasswordWindow id="changePasswordWindow"/>
+		</mx:Box>
+		
+		<mx:ViewStack id="adminTaskStack" height="100%" width="100%"
+			paddingBottom="10" paddingLeft="10" paddingRight="10" paddingTop="20">
+			<local:SlideSPOTManagement id="adminSlideSPOTManager"/>
+			<local:TeNfoManagement id="adminTeNfoManager"/>
+			<!--<local:SlideManagement id="adminSlideManager"/>-->
+			<local:UserManagement id="adminUserManager"/>
+			<local:ClientManagement id="adminClientManager"/>
+		</mx:ViewStack>
+		
+		<mx:ViewStack id="generalTaskStack" height="100%" width="100%"
+			paddingBottom="10" paddingLeft="10" paddingRight="10" paddingTop="20">
+			<local:SlideSPOTManagement id="generalSlideSPOTManager"/>
+			<local:TeNfoManagement id="generalTeNfoManager"/>
+			<!--<local:SlideManagement id="generalSlideManager"/>-->
+		</mx:ViewStack>
+	</mx:ViewStack>
+</mx:Application>

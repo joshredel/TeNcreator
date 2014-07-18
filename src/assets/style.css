@@ -1,0 +1,66 @@
+/* CSS file */
+@font-face {
+	src: url("verdana.ttf");
+	fontFamily: "verdanaEmbedded";
+	fontStyle: normal;
+	fontWeight: normal;
+	advancedAntiAliasing: true;
+}
+
+@font-face {
+	src: url("verdanai.ttf");
+	fontFamily: "verdanaEmbedded";
+	fontStyle: italic;
+	fontWeight: normal;
+	advancedAntiAliasing: true;
+}
+
+@font-face {
+	src: url("verdanab.ttf");
+	fontFamily: "verdanaEmbedded";
+	fontStyle: normal;
+	fontWeight: bold;
+	advancedAntiAliasing: true;
+}
+
+Application {
+	fontFamily: verdanaEmbedded;
+	backgroundColor: #B30000;
+	fontSize: 12px;
+	themeColor: #EE0000;
+}
+
+ApplicationControlBar {
+	backgroundColor: #141414;
+	color: #FFFFFF;
+}
+
+ControlBar, Button {
+	fontSize: 10px;
+}
+
+Panel {
+   titleStyleName: "panelTitles";
+   color: #000000;
+   /*borderAlpha: 0.3;
+   backgroundAlpha: 0.9;*/
+}
+
+.panelTitles {
+   color: #000000;
+   fontWeight: bold;
+}
+
+FormHeading {
+	fontSize: 20px;
+}
+
+.rendererHeader {
+	fontWeight: bold;
+	paddingTop: 3;
+	paddingBottom: -10;
+}
+
+RadioButton {
+	fontSize: 12px;
+}

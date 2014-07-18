@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:Panel xmlns:mx="http://www.adobe.com/2006/mxml"
+	xmlns:slideManagement="org.ten.slideManagement.*"
+	layout="absolute" width="100%" height="100%"
+	title="View SlideSPOT Information">
+	
+	<mx:Script>
+		<![CDATA[
+			import org.ten.classes.SlideSPOT;
+			import mx.core.Application;
+			import mx.managers.PopUpManager;
+			import org.ten.components.ConfirmationWindow;
+			import com.adobe.utils.DictionaryUtil;
+			
+			[Bindable]
+			/**
+			 * The reference to the SlideSPOT we are viewing.
+			 */
+			public var slideSPOT:SlideSPOT;
+			
+			/**
+			 * The function that will be called when
+			 * the edit button is clicked.
+			 */
+			public var editButtonFunction:Function;
+			
+			/**
+			 * @private
+			 * Handles the Edit button click.
+			 */
+			private function editButtonHandler():void
+			{
+				try
+				{
+					editButtonFunction();
+				}
+				catch(err:Error)
+				{
+					// too bad, there was no function...
+				}
+			}
+			
+			/**
+			 * @private
+			 * Handles the Delete button click by asking
+			 * the user if they are sure they wish
+			 * to delete the SlideSPOT.
+			 */
+			private function deleteButtonHandler():void
+			{
+				// ask them if they want to delete
+				var window:ConfirmationWindow = PopUpManager.createPopUp(Application.application as DisplayObject, ConfirmationWindow, true) as ConfirmationWindow;
+				window.text = "Are you sure you wish to delete this SlideSPOT?  The action is irreversible, however any slides " + 
+						"associated with it will be stored in your library for use later on.";
+				window.yesFunction = completeDeleteSlideSPOT;
+			}
+			
+			/**
+			 * @private
+			 * Deletes the SlideSPOT upon confirmation.
+			 */
+			private function completeDeleteSlideSPOT():void
+			{
+				SlideSPOT.deleteSlideSPOT(slideSPOT);
+				slideSPOT = null;
+			}
+		]]>
+	</mx:Script>
+	
+	<mx:Form visible="{slideSPOT != null}">
+		<mx:FormHeading label="SlideSPOT Information"/>
+		
+		<mx:FormItem label="Contained Slide:">
+			<mx:Label text="No slide selected (click Edit to choose one)" includeInLayout="{slideSPOT.slide == null}" 
+				visible="{slideSPOT.slide == null}"/>
+			<slideManagement:SlideItemRenderer data="{slideSPOT.slide}" includeInLayout="{slideSPOT.slide != null}" visible="{slideSPOT.slide != null}"/>
+		</mx:FormItem>
+		
+		<mx:FormItem label="Ordering Position:">
+			<mx:Label text="{(slideSPOT.orderRank == -1 ? 'End (no order was selected, so it will be placed at the end)' : slideSPOT.orderRank)}"/>
+		</mx:FormItem>
+	</mx:Form>
+	
+	<mx:ControlBar width="100%">
+		<mx:Button label="Edit SlideSPOT" click="editButtonHandler()" includeInLayout="{slideSPOT != null}" visible="{slideSPOT != null}"/>
+	</mx:ControlBar>
+	
+</mx:Panel>

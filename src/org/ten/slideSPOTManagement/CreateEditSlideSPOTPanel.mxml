@@ -1,0 +1,175 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:Panel xmlns:mx="http://www.adobe.com/2006/mxml"
+	xmlns:slideManagement="org.ten.slideManagement.*"
+	layout="absolute" width="100%" height="100%"
+	title="Modify SlideSPOT Information">
+	
+	<mx:Script>
+		<![CDATA[
+			import org.ten.classes.DataShop;
+			import mx.managers.DragManager;
+			import mx.events.DragEvent;
+			import org.ten.classes.Slide;
+			import org.ten.classes.User;
+			import org.ten.classes.SlideSPOT;
+			import mx.core.Application;
+			import mx.managers.PopUpManager;
+			import org.ten.components.ConfirmationWindow;
+			import com.adobe.utils.DictionaryUtil;
+			
+			[Bindable]
+			/**
+			 * @private
+			 * Our reference to the data shop.
+			 */
+			private var dataShop:DataShop = DataShop.getInstance();
+			
+			[Bindable]
+			/**
+			 * The reference to the client we are viewing.
+			 */
+			public var slideSPOT:SlideSPOT;
+			
+			/**
+			 * The function that will be called when we wish
+			 * to return to the view panel.
+			 */
+			public var backFunction:Function;
+			
+			/**
+			 * @private
+			 * Handles the Save Changes button click
+			 * by saving the SlideSPOT to the database.
+			 */
+			private function saveButtonHandler():void
+			{
+				// save the SlideSPOT (it's data should have been updated on change of values)
+				slideSPOT.owner = dataShop.currentUser;
+				SlideSPOT.saveSlideSPOT(slideSPOT);
+				
+				// and go back!
+				cancelButtonHandler();
+			}
+			
+			/**
+			 * @private
+			 * Handles the Cancel Changes button click 
+			 * by returning to the view panel.
+			 */
+			private function cancelButtonHandler():void
+			{
+				try
+				{
+					backFunction();
+				}
+				catch(err:Error)
+				{
+					// too bad, no function!
+				}
+				
+				// call this so we can revert changes we may have made
+				SlideSPOT.getSlideSPOTs();
+			}
+			
+			/**
+			 * @private
+			 * Handles the Delete button click by asking
+			 * the user if they are sure they wish
+			 * to delete the user.
+			 */
+			private function deleteButtonHandler():void
+			{
+				// ask them if they want to delete
+				var window:ConfirmationWindow = PopUpManager.createPopUp(Application.application as DisplayObject, ConfirmationWindow, true) as ConfirmationWindow;
+				window.text = "Are you sure you wish to delete this SlideSPOT?  The action is irreversible, however any slides " + 
+						"associated with it will be stored in your library for use later on.";
+				window.yesFunction = completeDeleteSlideSPOT;
+			}
+			
+			/**
+			 * @private
+			 * Deletes the SlideSPOT upon confirmation.
+			 */
+			private function completeDeleteSlideSPOT():void
+			{
+				SlideSPOT.deleteSlideSPOT(slideSPOT);
+				
+				// setting id to 0 will tell the view pane to set the SlideSPOT to null
+				slideSPOT.id = 0;
+				try
+				{
+					backFunction();
+				}
+				catch(err:Error)
+				{}
+			}
+			
+			/**
+			 * @private
+			 * Handles the drag enter event when a slide from the list
+			 * is dragged over top of the slide drop area.
+			 */
+			private function dragEnterHandler(event:DragEvent):void
+			{
+				// get the drag data
+				var dragData:Array = event.dragSource.dataForFormat("items") as Array;
+				
+				if(slideSPOT.slide == null)
+				{
+					// if the slide is null, we can just add one
+					DragManager.acceptDragDrop(slideSPOTSlide);
+					DragManager.showFeedback(DragManager.COPY);
+				}
+				else
+				{
+					// if we already have a slide, check to make sure we're not already using that one here
+					if(slideSPOT.slide.id != dragData[0].id)
+					{
+						DragManager.acceptDragDrop(slideSPOTSlide);
+						DragManager.showFeedback(DragManager.MOVE);
+					}
+				}
+			}
+			
+			/**
+			 * @private
+			 * Handles the drop of a slide on the slide drop area.
+			 */
+			private function dragDropHandler(event:DragEvent):void
+			{
+				// get the drag data
+				var dragData:Array = event.dragSource.dataForFormat("items") as Array;
+				var slide:Slide = dragData[0] as Slide
+				
+				// add that slide!
+				slideSPOT.slide = slide;
+			}
+		]]>
+	</mx:Script>
+	
+	<mx:Form visible="{slideSPOT != null}">
+		<mx:FormHeading label="SlideSPOT Information"/>
+		
+		<mx:FormItem label="Contained Slide:">
+			<mx:Label text="Drag a slide from the list on the left onto the right area to display a slide in this SlideSPOT."/>
+			<mx:HBox>
+				<mx:List id="mySlidesList" width="300" height="400" dataProvider="{dataShop.mySlides}" 
+					dragEnabled="true" itemRenderer="org.ten.slideManagement.SlideItemRenderer"/>
+				<slideManagement:SlideItemRenderer id="slideSPOTSlide" width="300" data="{slideSPOT.slide}"
+					borderStyle="outset" borderThickness="2" backgroundColor="0xFFFFFF" 
+					dragEnter="dragEnterHandler(event)" dragDrop="dragDropHandler(event)"/>
+			</mx:HBox>
+		</mx:FormItem>
+		
+		<mx:FormItem label="Ordering Position:">
+			<mx:Label text="{(slideSPOT.orderRank == -1 ? 'End' : slideSPOT.orderRank)}"/>
+			<mx:Label text="(You can rearrange the order in which your slides appear by dragging them in the list to the left!)"/>
+		</mx:FormItem>
+	</mx:Form>
+	
+	<mx:ControlBar width="100%">
+		<mx:Button label="{(slideSPOT.id == 0 ? 'Create SlideSPOT' : 'Save Changes')}" click="saveButtonHandler()"/>
+		<mx:Button label="Cancel Changes" click="cancelButtonHandler()"/>
+	</mx:ControlBar>
+	
+</mx:Panel>

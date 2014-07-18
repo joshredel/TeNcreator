@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:Canvas xmlns:mx="http://www.adobe.com/2006/mxml" 
+	width="100%" height="42" horizontalScrollPolicy="off" 
+	verticalScrollPolicy="off">
+	
+	<mx:VBox>
+		<mx:Label text="{data.clientname}" styleName="rendererHeader" 
+			truncateToFit="true" maxWidth="270"/>
+		<mx:Label text="{data.location}" 
+			truncateToFit="true" maxWidth="270"/>
+	</mx:VBox>
+</mx:Canvas>

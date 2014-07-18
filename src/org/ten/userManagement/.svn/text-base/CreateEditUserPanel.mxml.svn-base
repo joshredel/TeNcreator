@@ -1,0 +1,158 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:Panel xmlns:mx="http://www.adobe.com/2006/mxml"
+	layout="absolute" width="100%" height="100%"
+	title="Modify User Information">
+	
+	<mx:Script>
+		<![CDATA[
+			import mx.core.Application;
+			import mx.managers.PopUpManager;
+			import org.ten.components.ConfirmationWindow;
+			import com.adobe.crypto.SHA1;
+			import com.adobe.utils.DictionaryUtil;
+			import org.ten.classes.SlideSPOT;
+			import org.ten.classes.User;
+			
+			[Bindable]
+			/**
+			 * The reference to the user we are viewing.
+			 */
+			public var user:User;
+			
+			/**
+			 * The function that will be called when we wish
+			 * to return to the view panel.
+			 */
+			public var backFunction:Function;
+			
+			/**
+			 * @private
+			 * Handles the Save Changes button click
+			 * by saving the user to the database.
+			 */
+			private function saveButtonHandler():void
+			{
+				// let's manually set password to prevent double hashing
+				if(user.id == 0)
+				{
+					user.password = SHA1.hash(password.text);
+				}
+				
+				// save the user (it's data should have been updated on change of values)
+				User.saveUser(user);
+				
+				// and go back!
+				cancelButtonHandler();
+			}
+			
+			/**
+			 * @private
+			 * Handles the Cancel Changes button click 
+			 * by returning to the view panel.
+			 */
+			private function cancelButtonHandler():void
+			{
+				try
+				{
+					backFunction();
+				}
+				catch(err:Error)
+				{
+					// too bad, no function!
+				}
+				
+				// call this so we can revert changes we may have made
+				User.getUsers();
+			}
+			
+			/**
+			 * @private
+			 * Handles the Delete button click by asking
+			 * the user if they are sure they wish
+			 * to delete the user.
+			 */
+			private function deleteButtonHandler():void
+			{
+				// ask them if they want to delete
+				var window:ConfirmationWindow = PopUpManager.createPopUp(Application.application as DisplayObject, ConfirmationWindow, true) as ConfirmationWindow;
+				window.text = "Are you sure you wish to delete this user?  The action is irreversible.";
+				window.yesFunction = completeDeleteUser;
+			}
+			
+			/**
+			 * @private
+			 * Deletes the user upon confirmation.
+			 */
+			private function completeDeleteUser():void
+			{
+				User.deleteUser(user);
+				
+				// setting id to 0 will tell the view pane to set the user to null
+				user.id	= 0;
+				try
+				{
+					backFunction();
+				}
+				catch(err:Error)
+				{}
+			}
+		]]>
+	</mx:Script>
+	
+	<mx:Form visible="{user != null}">
+		<mx:FormHeading label="User Information"/>
+		
+		<mx:FormItem label="Username:" required="true">
+			<mx:TextInput id="username" text="{user.username}" change="user.username = username.text"/>
+		</mx:FormItem>
+		
+		<mx:FormItem label="Password:" required="true"
+			includeInLayout="{user.id == 0}" visible="{user.id == 0}">
+			<mx:TextInput id="password" text="{user.password}" displayAsPassword="true"/>
+		</mx:FormItem>
+		
+		
+		<mx:FormItem label="User Type:" required="true">
+			<mx:ComboBox id="userType" dataProvider="{User.TYPES}" 
+				selectedIndex="{User.TYPES.getItemIndex(user.type)}"
+				change="user.type = userType.selectedItem as String"/>
+		</mx:FormItem>
+		
+		<mx:FormItem label="Privileges:" required="true">
+			<mx:RadioButtonGroup id="userPrivileges" selectedValue="{user.isAdministrator}" 
+				change="user.isAdministrator = userPrivileges.selectedValue"/>
+			<mx:RadioButton group="{userPrivileges}" value="{true}" label="Administrative User"/>
+			<mx:RadioButton group="{userPrivileges}" value="{false}" label="General User"/>
+		</mx:FormItem>
+		
+		<mx:FormItem label="Submissions Require Approval:" 
+			includeInLayout="{!user.isAdministrator}" visible="{!user.isAdministrator}">
+			<mx:RadioButtonGroup id="userRequiresApproval" selectedValue="{user.requiresApproval}"
+				change="user.requiresApproval = userRequiresApproval.selectedValue"/>
+			<mx:RadioButton group="{userRequiresApproval}" value="{true}" label="Yes"/>
+			<mx:RadioButton group="{userRequiresApproval}" value="{false}" label="No"/>
+		</mx:FormItem>
+		
+		<mx:FormItem label="Can Do Screen Take-Over:">
+			<mx:RadioButtonGroup id="userCanTakeOver" selectedValue="{user.canTakeOver}"
+				change="user.canTakeOver = userCanTakeOver.selectedValue"/>
+			<mx:RadioButton group="{userCanTakeOver}" value="{true}" label="Yes"/>
+			<mx:RadioButton group="{userCanTakeOver}" value="{false}" label="No"/>
+		</mx:FormItem>
+		
+		<mx:FormItem label="Can Choose Duration Time:">
+			<mx:RadioButtonGroup id="userCanChooseDurationTime" selectedValue="{user.canChooseDurationTime}"
+				change="user.canChooseDurationTime = userCanChooseDurationTime.selectedValue"/>
+			<mx:RadioButton group="{userCanChooseDurationTime}" value="{true}" label="Yes"/>
+			<mx:RadioButton group="{userCanChooseDurationTime}" value="{false}" label="No"/>
+		</mx:FormItem>
+	</mx:Form>
+	
+	<mx:ControlBar width="100%">
+		<mx:Button label="{(user.id == 0 ? 'Create User' : 'Save Changes')}" click="saveButtonHandler()"/>
+		<mx:Button label="Cancel Changes" click="cancelButtonHandler()"/>
+		<mx:Button label="Delete User" click="deleteButtonHandler()" 
+			includeInLayout="{user.id > 0}" visible="{user.id > 0}"/>
+	</mx:ControlBar>
+	
+</mx:Panel>

@@ -1,0 +1,104 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:HBox xmlns:mx="http://www.adobe.com/2006/mxml" 
+	xmlns:client="org.ten.clientManagement.*"
+	xmlns:efflex="org.efflex.mx.viewStackEffects.*" 
+	width="100%" height="100%" show="Client.getClients()"
+	label="Client Management" 
+	enabled="{dataShop.currentUser.isAdministrator}">
+	
+	<mx:Script>
+		<![CDATA[
+			import org.ten.classes.DataShop;
+			import mx.events.ListEvent;
+			import org.ten.classes.User;
+			import org.ten.classes.Client;
+			
+			[Bindable]
+			/**
+			 * @private
+			 * Our reference to the data shop.
+			 */
+			private var dataShop:DataShop = DataShop.getInstance();
+			
+			/**
+			 * @private
+			 * Handles the click in the list by 
+			 * showing information about that client 
+			 * in the view panel.
+			 */
+			private function handleSelection(event:ListEvent):void
+			{
+				// switch to the view state if we aren't already there
+				if(managementViews.selectedChild != viewPanel)
+				{
+					managementViews.selectedChild = viewPanel;
+				}
+				
+				// tell that panel to view the selected item
+				viewPanel.client = clientList.selectedItem as Client;
+			}
+			
+			/**
+			 * @private
+			 * Handles the edit button function that will be 
+			 * passed to the view panel.
+			 */
+			private function editButtonHandler():void
+			{
+				editPanel.client = viewPanel.client;
+				managementViews.selectedChild = editPanel;
+			}
+			
+			/**
+			 * @private
+			 * Handles the back functions when buttons in
+			 * the edit panel request to return to the
+			 * view panel.
+			 */
+			private function backButtonHandler():void
+			{
+				if(editPanel.client.id > 0)
+				{
+					viewPanel.client = editPanel.client;
+				}
+				else
+				{
+					viewPanel.client = null;
+				}
+				managementViews.selectedChild = viewPanel;
+			}
+			
+			/**
+			 * @private
+			 * Handles the New button click by switching
+			 * views so we can create a new client.
+			 */
+			private function newButtonHandler():void
+			{
+				editPanel.client = new Client();
+				managementViews.selectedChild = editPanel;
+			}
+		]]>
+	</mx:Script>
+	
+	<!-- Display Elements -->
+	<mx:Panel height="100%" width="300" title="Clients">
+		<mx:List id="clientList" dataProvider="{dataShop.clients}" height="100%" width="100%"
+			 itemRenderer="org.ten.clientManagement.ClientItemRenderer" change="handleSelection(event)"/>
+		
+		<mx:ControlBar>
+			<mx:Button label="New Client" click="newButtonHandler()"/>
+		</mx:ControlBar>
+	</mx:Panel>
+	
+	<mx:ViewStack id="managementViews" width="100%" height="100%" creationPolicy="all">
+		<client:ViewClientPanel id="viewPanel" editButtonFunction="{editButtonHandler}"
+			hideEffect="{fader}" showEffect="{fader}"/>
+		<client:CreateEditClientPanel id="editPanel" backFunction="{backButtonHandler}"
+			hideEffect="{fader}" showEffect="{fader}"/>
+	</mx:ViewStack>
+	
+	<!-- Effects -->
+	<efflex:Fade id="fader" transparent="true" duration="400"/>
+	
+</mx:HBox>

@@ -1,0 +1,327 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:HBox xmlns:mx="http://www.adobe.com/2006/mxml" 
+	xmlns:spot="org.ten.slideSPOTManagement.*"
+	xmlns:slide="org.ten.slideManagement.*"
+	xmlns:efflex="org.efflex.mx.viewStackEffects.*" 
+	width="100%" height="100%"  show="SlideSPOT.getSlideSPOTs()"
+	label="{(dataShop.currentUser == null ? '' : (dataShop.currentUser.type == User.TYPE_PERSON ? 'My' : 'Our'))} Slide Management"
+	initialize="onInit()">
+	
+	<mx:Script>
+		<![CDATA[
+			import org.ten.events.SlideEvent;
+			import mx.core.DragSource;
+			import mx.managers.DragManager;
+			import mx.events.DragEvent;
+			import org.ten.classes.Slide;
+			import mx.binding.utils.ChangeWatcher;
+			import mx.collections.ArrayCollection;
+			import org.ten.classes.DataShop;
+			import mx.events.ListEvent;
+			import org.ten.classes.User;
+			import org.ten.classes.SlideSPOT;
+			
+			[Bindable]
+			/**
+			 * @private
+			 * Our reference to the data shop.
+			 */
+			private var dataShop:DataShop = DataShop.getInstance();
+			
+			[Bindable]
+			/**
+			 * @private
+			 * A bindable collection of used SlideSPOTs.
+			 */
+			private var usedSlideSPOTs:ArrayCollection = new ArrayCollection();
+			
+			[Bindable]
+			/**
+			 * @private
+			 * A bindable collection of unused SlideSPOTs.
+			 */
+			private var unusedSlideSPOTs:ArrayCollection = new ArrayCollection();
+			
+			/**
+			 * @private
+			 * On initialization, a change watcher is added to create a customized 
+			 * SlideSPOT list of only slide spots that are used.
+			 */
+			private function onInit():void
+			{
+				// watch for changes to the mySlideSPOTs variable
+				ChangeWatcher.watch(dataShop, "mySlideSPOTs", handleSlideSPOTsChange);
+			}
+			
+			/**
+			 * @private
+			 * Creates the customized list of used SlideSPOTs
+			 */
+			private function handleSlideSPOTsChange(event:Event):void
+			{
+				// start fresh
+				usedSlideSPOTs = new ArrayCollection();
+				unusedSlideSPOTs = new ArrayCollection();
+				
+				// create the list of used slide spots and count how many are unused
+				for each(var slideSPOT:SlideSPOT in dataShop.mySlideSPOTs)
+				{
+					if(slideSPOT.slide == null)
+					{
+						// if the SlideSPOT is empty, store it so we can add slides to it
+						unusedSlideSPOTs.addItem(slideSPOT);
+					}
+					else
+					{
+						// if the SlideSPOT has a slide, record it
+						usedSlideSPOTs.addItem(slideSPOT);
+					}
+				}
+			}
+			
+//			/**
+//			 * @private
+//			 * Handles the Batch button click by showing the
+//			 * Batch Upload view.
+//			 */
+//			private function batchButtonHandler():void
+//			{
+//				managementViews.selectedChild = batchPanel;
+//			}
+			
+			/**
+			 * @private
+			 * Handles the back function when a back action is completed 
+			 * in the batch add view.
+			 */
+			private function batchBackButtonHandler():void
+			{
+				managementViews.selectedChild = libraryPanel;
+			}
+			
+			/**
+			 * @private
+			 * Handles a drag enter event on the SlideSPOT list 
+			 * by checking if the dragged item is a slide and if 
+			 * there are enough spots for the selected slides.
+			 */
+			private function dragEnterHandler(event:DragEvent):void
+			{
+				// get the drag data
+				var source:DragSource = event.dragSource;
+				var dragData:Array = source.dataForFormat("items") as Array;
+				
+				// make sure we have enough space
+				if(dragData.length > unusedSlideSPOTs.length)
+				{
+					// there are more items in the dragged items than available, so cancel
+					return;
+				}
+				
+				// later: check if we are dragging to reorder or adding new slides
+				
+				// enable the drag
+				DragManager.acceptDragDrop(slideSPOTList);
+				DragManager.showFeedback(DragManager.COPY);
+			}
+			
+			/**
+			 * @private
+			 * Handles a drag drop event by adding the client(s) to 
+			 * the slide.
+			 */
+			private function dragDropHandler(event:DragEvent):void
+			{
+				// get the drag data
+				var source:DragSource = event.dragSource;
+				var dragData:Array = source.dataForFormat("items") as Array;
+				
+				// add the items to the available SlideSPOTs
+				for each(var slide:Slide in dragData)
+				{
+					// get the next spot we can use
+					var slideSPOT:SlideSPOT = unusedSlideSPOTs.removeItemAt(0) as SlideSPOT;
+					
+					// add the slide to the SlideSPOT and save
+					slideSPOT.slide = slide;
+					SlideSPOT.saveSlideSPOT(slideSPOT, false);
+				}
+				
+				// finally, request refreshed SlideSPOTs
+				SlideSPOT.getSlideSPOTs();
+			}
+			
+			/**
+			 * @private
+			 * Handles the clear SlideSPOT button by clearing
+			 * the stored slide in the selected slides.
+			 */
+			private function clearSlideSPOTHandler():void
+			{
+				// loop through all of the selected items in the list
+				for each(var slideSPOT:SlideSPOT in slideSPOTList.selectedItems)
+				{
+					// clear the slide in it
+					slideSPOT.slide = null;
+					
+					// save it, but don't refresh quite yet
+					SlideSPOT.saveSlideSPOT(slideSPOT, false);
+				}
+				
+				// finally, request refreshed SlideSPOTs
+				SlideSPOT.getSlideSPOTs();
+			}
+			
+			// FUNCTIONS FOR Slide Management: pulled from SlideManagement.mxml
+			
+			/**
+			 * @private
+			 * Handles the click in the list by 
+			 * showing information about that slide 
+			 * in the view panel.
+			 */
+			private function handleSelection(event:Event):void
+			{
+				// switch the the management views
+				libraryStack.selectedChild = slideManagementViews;
+				
+				// default to the view information part
+				slideManagementViews.selectedChild = viewPanel;
+				viewPanel.slide = slideList.selectedItem as Slide;
+			}
+			
+			/**
+			 * @private
+			 * Handles the edit button function that will be 
+			 * passed to the view panel.
+			 */
+			private function editButtonHandler():void
+			{
+				editPanel.slide = viewPanel.slide;
+				slideManagementViews.selectedChild = editPanel;
+			}
+			
+			/**
+			 * @private
+			 * Handles the back functions when buttons in
+			 * the edit panel request to return to the
+			 * view panel.
+			 */
+			private function backButtonHandler():void
+			{
+				if(editPanel.slide.id > 0)
+				{
+					viewPanel.slide = editPanel.slide;
+				}
+				else
+				{
+					viewPanel.slide = null;
+				}
+				slideManagementViews.selectedChild = viewPanel;
+			}
+			
+			/**
+			 * @private
+			 * Handles the New button click by switching
+			 * views so we can create a new slide.
+			 */
+			private function newButtonHandler():void
+			{
+				// switch to the mangement view
+				libraryStack.selectedChild = slideManagementViews;
+				
+				// show the edit panel in the management view
+				editPanel.slide = new Slide();
+				slideManagementViews.selectedChild = editPanel;
+			}
+			
+			/**
+			 * @private
+			 * Handles the back to library functions when 
+			 * the view panel's back button is clicked.
+			 */
+			private function backToLibraryHandler():void
+			{
+				// back to the library!
+				libraryStack.selectedChild = libraryPanel;
+			}
+			
+			/**
+			 * @private
+			 * Handles a change in the scale slider by 
+			 * sending a scale event to the TileList.
+			 */
+			private function changeScale():void
+			{
+				// custom resize the column width and height to force a redraw
+				slideList.columnWidth = (1165 * (previewScaleSlider.value / 100)) + 70;
+				slideList.rowHeight = (728 * (previewScaleSlider.value / 100)) + 47.5;
+				
+				// tell the renderers to change their size
+				slideList.dispatchEvent(new SlideEvent(SlideEvent.SLIDE_PREVIEW_SCALE, previewScaleSlider.value / 100));
+				
+				// make everything take affect
+				slideList.invalidateProperties();
+			}
+		]]>
+	</mx:Script>
+	
+	<!-- Display Elements -->
+	<mx:Panel height="100%" width="250" title="Slides in Use">
+		<mx:Text width="100%" selectable="false" paddingTop="5" paddingLeft="5" paddingRight="5"
+			text="The slide below are currently on display or will be in the future as per their publishing settings. 
+				  Drag your slides here to have them displayed."/>
+		<mx:List id="slideSPOTList" dataProvider="{usedSlideSPOTs}" height="100%" width="100%"
+			itemRenderer="org.ten.slideSPOTManagement.SlideSPOTItemRenderer" dragEnter="dragEnterHandler(event)" 
+			dragDrop="dragDropHandler(event)" selectable="true" allowMultipleSelection="true"/>
+		<mx:Text width="100%" selectable="false" paddingBottom="5" paddingLeft="5" paddingRight="5"
+			text="You have {unusedSlideSPOTs.length} spaces remaining." textAlign="center"/>
+		
+		<mx:ControlBar width="100%">
+			<!--<mx:VBox width="100%" horizontalAlign="center">
+				<mx:Button label="Upload a Batch of Slides" click="batchButtonHandler()"/>-->
+				<mx:Button label="Clear Selected SlideSPOT{(slideSPOTList.selectedItems.length &#60;= 1 ? '' : 's')}" 
+					click="clearSlideSPOTHandler()"
+					enabled="{slideSPOTList.selectedItems.length > 0}"/>
+			<!--</mx:VBox>-->
+		</mx:ControlBar>
+	</mx:Panel>
+	
+	<mx:ViewStack id="managementViews" height="100%" width="100%">
+		<mx:ViewStack id="libraryStack" height="100%" width="100%">
+			<mx:Panel id="libraryPanel" title="Stored Slide Library" height="100%" width="100%"
+				showEffect="{flipperRight}" hideEffect="{flipperLeft}">
+				<mx:TileList id="slideList" dataProvider="{dataShop.mySlides}" height="100%" width="100%"
+					itemRenderer="org.ten.slideManagement.SlideItemRenderer" backgroundAlpha="0.0"
+					doubleClick="handleSelection(event)" dragEnabled="true" minWidth="0" minHeight="0"/>
+				
+				<mx:ControlBar>
+					<mx:Button label="View Slide Information" click="handleSelection(event)"
+						enabled="{slideList.selectedIndex >= 0}"/>
+					<mx:Button label="New Slide(s)" click="newButtonHandler()"/>
+					<mx:Spacer width="15"/>
+					<mx:Label text="Scale:"/>
+					<mx:HSlider id="previewScaleSlider" minimum="10" maximum="50" value="10" dataTipPlacement="top" 
+						snapInterval="1" tickInterval="10" allowTrackClick="true" 
+						liveDragging="true" change="changeScale()"/>
+				</mx:ControlBar>
+			</mx:Panel>
+			
+			<mx:ViewStack id="slideManagementViews" height="100%" width="100%"
+				showEffect="{flipperLeft}" hideEffect="{flipperRight}">
+				<slide:ViewSlidePanel id="viewPanel" editButtonFunction="{editButtonHandler}"
+					backButtonFunction="{backToLibraryHandler}"/><!-- hideEffect="{fader}" showEffect="{fader}"/>-->
+				<slide:CreateEditSlidePanel id="editPanel" backFunction="{backButtonHandler}"
+					backToLibraryFunction="{backToLibraryHandler}"/><!--hideEffect="{fader}" showEffect="{fader}" />-->
+			</mx:ViewStack>
+		</mx:ViewStack>
+	</mx:ViewStack>
+	
+	<!-- Effects -->
+	<efflex:Fade id="fader" transparent="true" duration="400"/>
+	<efflex:FlipPapervision3D id="flipperLeft" numSegmentsHeight="6" numSegmentsWidth="3" 
+		duration="700" transparent="true" direction="left"/>
+	<efflex:FlipPapervision3D id="flipperRight" numSegmentsHeight="6" numSegmentsWidth="6" 
+		duration="700" transparent="true" direction="right"/>
+	
+</mx:HBox>

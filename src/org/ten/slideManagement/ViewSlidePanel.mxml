@@ -1,0 +1,186 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:Panel xmlns:mx="http://www.adobe.com/2006/mxml"
+	xmlns:efflex="org.efflex.mx.viewStackEffects.*" 
+	layout="absolute" width="100%" height="100%"
+	title="View Slide Information" hide="slidePreview.unloadAndStop(true)">
+	
+	<mx:Script>
+		<![CDATA[
+			import mx.events.FlexEvent;
+			import org.ten.classes.DataShop;
+			import org.ten.classes.Slide;
+			import mx.core.Application;
+			import mx.managers.PopUpManager;
+			import org.ten.components.ConfirmationWindow;
+			import com.adobe.utils.DictionaryUtil;
+			
+			[Bindable]
+			/**
+			 * @private
+			 * Our reference to the data shop.
+			 */
+			private var dataShop:DataShop = DataShop.getInstance();
+			
+			[Bindable]
+			/**
+			 * The reference to the slide we are viewing.
+			 */
+			public var slide:Slide;
+			
+			/**
+			 * The function that will be called when
+			 * the edit button is clicked.
+			 */
+			public var editButtonFunction:Function;
+			
+			/**
+			 * The function that will be called when 
+			 * the back button is clicked.
+			 */
+			public var backButtonFunction:Function;
+			
+			/**
+			 * Handles adding effects once loaded
+			 */
+			private function addEffects():void {
+				this.addEventListener(FlexEvent.SHOW, runEffect);
+				this.addEventListener(FlexEvent.HIDE, runEffect);
+			}
+			
+			private function runEffect(e:Event):void {
+				fader.play([this]);
+			}
+			
+			/**
+			 * @private
+			 * Handles the Edit button click.
+			 */
+			private function editButtonHandler():void
+			{
+				try
+				{
+					editButtonFunction();
+				}
+				catch(err:Error)
+				{
+					// too bad, there was no function...
+				}
+			}
+			
+			/**
+			 * @private
+			 * Handles the Delete button click by asking
+			 * the user if they are sure they wish
+			 * to delete the slide.
+			 */
+			private function deleteButtonHandler():void
+			{
+				// ask them if they want to delete
+				var window:ConfirmationWindow = PopUpManager.createPopUp(Application.application as DisplayObject, ConfirmationWindow, true) as ConfirmationWindow;
+				window.text = "Are you sure you wish to delete this slide?  The action is irreversible, and any file associated with this " + 
+						"slide will be permanently deleted.";
+				window.yesFunction = completeDeleteSlide;
+			}
+			
+			/**
+			 * @private
+			 * Handles the Back to Library button click.
+			 */
+			private function backButtonHandler():void
+			{
+				try
+				{
+					backButtonFunction();
+				}
+				catch(err:Error)
+				{
+					// too bad, there was no function...
+				}
+			}
+			
+			/**
+			 * @private
+			 * Deletes the slide upon confirmation.
+			 */
+			private function completeDeleteSlide():void
+			{
+				Slide.deleteSlide(slide);
+				slide = null;
+				backButtonHandler();
+			}
+			
+			/**
+			 * @private
+			 * Handles a change in the slider's value by zooming in 
+			 * or out of the preview image.
+			 */
+			private function changeScale():void
+			{
+				slidePreview.scaleX = previewScaleSlider.value / 100;
+				slidePreview.scaleY = previewScaleSlider.value / 100;
+			}
+		]]>
+	</mx:Script>
+	
+	<!-- Formatters -->
+	<mx:DateFormatter id="dateFormatter" formatString="EEEE, MMM. D, YYYY at J:NN"/>
+	
+	<!-- Display Objects -->
+	<mx:Form visible="{slide != null}">
+		<mx:FormHeading label="Slide Information"/>
+		
+		<mx:FormItem label="Name:">
+			<mx:Label text="{slide.slideName}"/>
+		</mx:FormItem>
+		
+		<mx:FormItem label="Visible on:">
+			<mx:List width="300" height="210" dataProvider="{slide.clients}"
+				itemRenderer="org.ten.clientManagement.ClientItemRenderer" selectable="false"/>
+		</mx:FormItem>
+		
+		<mx:FormItem label="Publish State:">
+			<mx:Label text="{slide.publishState}"/>
+		</mx:FormItem>
+		
+		<mx:FormItem label="Publish Dates:" includeInLayout="{slide.publishState == Slide.PUBLISHED_DATE_RANGE}"
+			visible="{slide.publishState == Slide.PUBLISHED_DATE_RANGE}">
+			<mx:Label text="{dateFormatter.format(slide.publishStartDate)} to {dateFormatter.format(slide.publishEndDate)}"/>
+		</mx:FormItem>
+		
+		<mx:FormItem label="Approval State:">
+			<mx:Label text="{slide.approvalState}"/>
+		</mx:FormItem>
+		
+		<mx:FormItem label="Screen Take-Over:" includeInLayout="{dataShop.currentUser.canTakeOver}"
+			visible="{dataShop.currentUser.canTakeOver}">
+			<mx:Label text="{slide.takeOver ? 'Yes' : 'No'}"/>
+		</mx:FormItem>
+		
+		<mx:FormItem label="Duration:">
+			<mx:Label text="{slide.durationTime / 1000} seconds"/>
+		</mx:FormItem>
+		
+		<mx:FormItem label="Preview ({slide.type}):">
+			<mx:HBox>
+				<mx:Label text="Preview Scale:"/>
+				<mx:HSlider id="previewScaleSlider" minimum="10" maximum="100" value="50" dataTipPlacement="bottom" 
+					snapInterval="1" tickInterval="10" labels="['10%','100%']" allowTrackClick="true"
+					liveDragging="true" change="changeScale()"/>
+			</mx:HBox>
+			<mx:Image id="slidePreview" scaleContent="true" scaleX="0.5" scaleY="0.5" 
+				source="{(slide == null || slide.fileLocation == '' ? '' :  'http://ten.mcgilleus.ca/tenapp/slides/' + slide.fileLocation)}"/>
+		</mx:FormItem>
+		
+	</mx:Form>
+	
+	<mx:ControlBar width="100%" includeInLayout="{slide != null}" visible="{slide != null}">
+		<mx:Button label="Back to Library" click="backButtonHandler()"/>
+		<mx:Button label="Edit Slide" click="editButtonHandler()"/>
+		<mx:Button label="Delete Slide" click="deleteButtonHandler()"/>
+	</mx:ControlBar>
+	
+	<!-- Effects -->
+	<efflex:Fade id="fader" transparent="true" duration="400"/>
+
+	
+</mx:Panel>

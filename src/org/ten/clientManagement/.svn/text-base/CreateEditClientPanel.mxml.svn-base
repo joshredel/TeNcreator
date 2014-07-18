@@ -1,0 +1,136 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:Panel xmlns:mx="http://www.adobe.com/2006/mxml"
+	layout="absolute" width="100%" height="100%"
+	title="Modify Client Information">
+	
+	<mx:Script>
+		<![CDATA[
+			import mx.core.Application;
+			import org.ten.classes.Client;
+			import mx.managers.PopUpManager;
+			import org.ten.components.ConfirmationWindow;
+			import com.adobe.crypto.SHA1;
+			import com.adobe.utils.DictionaryUtil;
+			
+			[Bindable]
+			/**
+			 * The reference to the client we are viewing.
+			 */
+			public var client:Client;
+			
+			/**
+			 * The function that will be called when we wish
+			 * to return to the view panel.
+			 */
+			public var backFunction:Function;
+			
+			/**
+			 * @private
+			 * Handles the Save Changes button click
+			 * by saving the client to the database.
+			 */
+			private function saveButtonHandler():void
+			{
+				// let's manually set password to prevent double hashing
+				if(password1.text != "")
+				{
+					client.password = SHA1.hash(password1.text);
+				}
+				
+				// save the user (it's data should have been updated on change of values)
+				Client.saveClient(client);
+				
+				// and go back!
+				cancelButtonHandler();
+			}
+			
+			/**
+			 * @private
+			 * Handles the Cancel Changes button click 
+			 * by returning to the view panel.
+			 */
+			private function cancelButtonHandler():void
+			{
+				try
+				{
+					backFunction();
+				}
+				catch(err:Error)
+				{
+					// too bad, no function!
+				}
+				
+				// call this so we can revert changes we may have made
+				Client.getClients();
+			}
+			
+			/**
+			 * @private
+			 * Handles the Delete button click by asking
+			 * the user if they are sure they wish
+			 * to delete the user.
+			 */
+			private function deleteButtonHandler():void
+			{
+				// ask them if they want to delete
+				var window:ConfirmationWindow = PopUpManager.createPopUp(Application.application as DisplayObject, ConfirmationWindow, true) as ConfirmationWindow;
+				window.text = "Are you sure you wish to delete this client?  The action is irreversible.";
+				window.yesFunction = completeDeleteClient;
+			}
+			
+			/**
+			 * @private
+			 * Deletes the user upon confirmation.
+			 */
+			private function completeDeleteClient():void
+			{
+				Client.deleteClient(client);
+				
+				// setting id to 0 will tell the view pane to set the user to null
+				client.id = 0;
+				try
+				{
+					backFunction();
+				}
+				catch(err:Error)
+				{}
+			}
+		]]>
+	</mx:Script>
+	
+	<mx:Form visible="{client != null}">
+		<mx:FormHeading label="Client Information"/>
+		
+		<mx:FormItem label="Clientname:" required="true">
+			<mx:TextInput id="clientname" text="{client.clientname}" change="client.clientname = clientname.text"/>
+		</mx:FormItem>
+		
+		<mx:FormItem label="Reset Password:" required="{client.id == 0}">
+			<mx:TextInput id="password1" displayAsPassword="true"/>
+		</mx:FormItem>
+		
+		<mx:FormItem label="Re-Enter Password:" required="{client.id == 0}">
+			<mx:TextInput id="password2" displayAsPassword="true"/>
+		</mx:FormItem>
+		
+		<mx:FormItem label="Location:" required="true">
+			<mx:TextInput id="location" text="{client.location}" change="client.location = location.text"/>
+		</mx:FormItem>
+		
+		<mx:FormItem label="Screen Resolution:" required="true">
+			<mx:HBox>
+				<mx:TextInput id="resolutionWidth" text="{client.nativeScreenWidth}" change="client.nativeScreenWidth = uint(resolutionWidth.text)" width="60"/>
+				<mx:Label text="x"/>
+				<mx:TextInput id="resolutionHeight" text="{client.nativeScreenHeight}" change="client.nativeScreenHeight = uint(resolutionHeight.text)" width="60"/>
+			</mx:HBox>
+		</mx:FormItem>
+	</mx:Form>
+	
+	<mx:ControlBar width="100%">
+		<mx:Button label="{(client.id == 0 ? 'Create Client' : 'Save Changes')}" click="saveButtonHandler()"/>
+		<mx:Button label="Cancel Changes" click="cancelButtonHandler()"/>
+		<mx:Button label="Delete Client" click="deleteButtonHandler()" 
+			includeInLayout="{client.id > 0}" visible="{client.id > 0}"/>
+	</mx:ControlBar>
+	
+</mx:Panel>

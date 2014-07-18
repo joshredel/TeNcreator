@@ -1,0 +1,670 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:Panel xmlns:mx="http://www.adobe.com/2006/mxml"
+	xmlns:components="org.ten.components.*"
+	xmlns:efflex="org.efflex.mx.viewStackEffects.*" 
+	layout="absolute" width="100%" height="100%"
+	title="Modify Slide Information" show="updateStates()"
+	hide="uploadPreview.unloadAndStop(true)">
+	
+	<mx:Script>
+		<![CDATA[
+			import mx.events.FlexEvent;
+			import org.ten.classes.DataShop;
+			import mx.collections.ArrayCollection;
+			import org.ten.classes.User;
+			import mx.events.CalendarLayoutChangeEvent;
+			import mx.managers.DragManager;
+			import mx.core.DragSource;
+			import mx.events.DragEvent;
+			import org.ten.classes.Client;
+			import mx.controls.Alert;
+			import org.ten.classes.Slide;
+			import mx.core.Application;
+			import mx.managers.PopUpManager;
+			import org.ten.components.ConfirmationWindow;
+			import com.adobe.utils.DictionaryUtil;
+			
+			[Bindable]
+			/**
+			 * @private
+			 * Our reference to the data shop.
+			 */
+			private var dataShop:DataShop = DataShop.getInstance();
+			
+			[Bindable]
+			/**
+			 * The reference to the slide we are viewing.
+			 */
+			public var slide:Slide;
+			
+			[Bindable]
+			/**
+			 * @private
+			 * The file to upload.
+			 */
+			private var fileWaitingForUpload:FileReference;
+			
+			/**
+			 * The function that will be called when we wish
+			 * to return to the view panel.
+			 */
+			public var backFunction:Function;
+			
+			/**
+			 * The function that will be called if we need 
+			 * to go back to library.
+			 */
+			public var backToLibraryFunction:Function;
+			
+			/**
+			 * Handles adding effects once loaded
+			 */
+			private function addEffects():void {
+				this.addEventListener(FlexEvent.SHOW, runEffect);
+				this.addEventListener(FlexEvent.HIDE, runEffect);
+			}
+			
+			private function runEffect(e:Event):void {
+				fader.play();
+			}
+			
+			/**
+			 * @private
+			 * Handles the Save Changes button click
+			 * by saving the slide to the database.
+			 */
+			private function saveButtonHandler():void
+			{
+				// check the form!
+				var missing:String = "";
+				
+				if(slideName.text.length == 0)
+				{
+					missing += "- A name for the slide\n";
+				}
+				
+				if(slideClients.dataProvider.length == 0)
+				{
+					missing += "- Clients to display the slide on\n";
+				}
+				
+				if(slide.fileLocation == null || slide.fileLocation == "")
+				{
+					missing += "- A file for the slide\n";
+				}
+				
+				if(missing.length > 0)
+				{
+					missing = "The following information is required but was missing:\n" + missing;
+					Alert.show(missing, "Invalid Slide");
+					return;
+				}
+				
+				// save the slide (it's data should have been updated on change of values)
+				// ... but, we need to get the dates manually
+				if(slide.publishState == Slide.PUBLISHED_DATE_RANGE)
+				{
+					var startDate:Date = slidePublishStartDate.selectedDate;
+					var endDate:Date = slidePublishEndDate.selectedDate;
+					
+					var startTime:TimeEntry = slidePublishStartTime;
+					var endTime:TimeEntry = slidePublishEndTime;
+					
+					slide.publishStartDate = new Date(startDate.fullYear, startDate.month, startDate.date, startTime.hour, startTime.minute);
+					slide.publishEndDate = new Date(endDate.fullYear, endDate.month, endDate.date, endTime.hour, endTime.minute);
+				}
+				else
+				{
+					slide.publishStartDate = new Date();
+					slide.publishEndDate = new Date();
+				}
+				
+				//and set that the current user is the owner of this slide
+				slide.owner = dataShop.currentUser;
+				
+				// now... we can save
+				Slide.saveSlide(slide);
+				
+				// switch back upload view
+				fileUploadStack.selectedChild = uploadButtonHolder;
+				
+				// and go back!
+				try
+				{
+					if(slide.id == 0)
+					{
+						backToLibraryFunction();
+					}
+					else
+					{
+						backFunction();
+					}
+				}
+				catch(err:Error)
+				{
+					// too bad, no function!
+				}
+				
+				// reset the take-over radios
+				slideTakeOver.selectedValue = false;
+				
+				// reset the time drop down
+				slideDurationTime.selectedIndex = Slide.DURATION_TIMES.getItemIndex('10 seconds');
+				
+				// call this so we can revert changes we may have made
+				Slide.getSlides();
+			}
+			
+			/**
+			 * @private
+			 * Handles the Cancel Changes button click 
+			 * by returning to the view panel.
+			 */
+			private function cancelButtonHandler():void
+			{
+				// switch back upload view
+				fileUploadStack.selectedChild = uploadButtonHolder;
+				
+				// delete the file if we didn't save it!
+				if(slide.id == 0)
+				{
+					Slide.deleteSlideFile(slide.fileLocation);
+				}
+				
+				// flip back
+				if(slide.id == 0)
+				{
+					// flip right back to the library
+					try
+					{
+						backToLibraryFunction();
+					}
+					catch(err:Error)
+					{
+						// too bad, there was no function...
+					}
+				}
+				else
+				{
+					try
+					{
+						backFunction();
+					}
+					catch(err:Error)
+					{
+						// too bad, no function!
+					}
+				}
+				
+				// reset the take-over radios
+				slideTakeOver.selectedValue = false;
+				
+				// reset the time drop down
+				slideDurationTime.selectedIndex = Slide.DURATION_TIMES.getItemIndex('10 seconds');
+				
+				// call this so we can revert changes we may have made
+				Slide.getSlides();
+			}
+			
+			/**
+			 * @private
+			 * Handles the Delete button click by asking
+			 * the user if they are sure they wish
+			 * to delete the slide.
+			 */
+			private function deleteButtonHandler():void
+			{
+				// ask them if they want to delete
+				var window:ConfirmationWindow = PopUpManager.createPopUp(Application.application as DisplayObject, ConfirmationWindow, true) as ConfirmationWindow;
+				window.text = "Are you sure you wish to delete this slide?  The action is irreversible, and any file associated with this " + 
+						"slide will be permanently deleted.";
+				window.yesFunction = completeDeleteSlide;
+			}
+			
+			/**
+			 * @private
+			 * Deletes the SlideSPOT upon confirmation.
+			 */
+			private function completeDeleteSlide():void
+			{
+				Slide.deleteSlide(slide);
+				
+				// setting id to 0 will tell the view pane to set the slide to null
+				slide.id = 0;
+				try
+				{
+					backToLibraryFunction();
+				}
+				catch(err:Error)
+				{}
+			}
+			
+			/**
+			 * @private
+			 * Handles the Upload... button click by 
+			 * asking which file they would like to upload.
+			 */
+			private function uploadButtonHandler():void
+			{
+				// make a list of filters
+				var imageFilters:FileFilter = new FileFilter("Images (*.jpg, *.jpeg, *.gif, *.png)", "*.jpg; *.jpeg; *.gif; *.png");
+				
+				// browse for a file
+				fileWaitingForUpload = new FileReference();
+				
+				// add all the event handlers
+				fileWaitingForUpload.addEventListener(Event.SELECT, fileSelectHandler);
+				fileWaitingForUpload.addEventListener(Event.OPEN, startProgressHandler);
+				fileWaitingForUpload.addEventListener(DataEvent.UPLOAD_COMPLETE_DATA, uploadDataHandler);
+				fileWaitingForUpload.addEventListener(SecurityErrorEvent.SECURITY_ERROR, securityErrorHandler);
+				fileWaitingForUpload.addEventListener(HTTPStatusEvent.HTTP_STATUS, httpErrorHandler);
+				fileWaitingForUpload.addEventListener(IOErrorEvent.IO_ERROR, ioErrorHandler);
+				
+				try
+				{
+					fileWaitingForUpload.browse([imageFilters]);
+				}
+				catch(error:Error)
+				{
+					Alert.show("Unable to browse for a file.  Please refresh the page and try again.", "Error:");
+				}
+			}
+			
+			/**
+			 * @private
+			 * Handles the completion of a user selecting by
+			 * uploading that file.
+			 */
+			private function fileSelectHandler(event:Event):void
+			{
+				// pass it a special name
+				// so first let's get the file extension
+				var parts:Array = fileWaitingForUpload.name.split(".");
+				var extension:String = "";
+				for(var i:Number = 1; i <= parts.length; i++)
+				{
+					if(i == parts.length && parts.length > 1)
+					{
+						extension = "." + parts[i - 1];
+					}
+				}
+				
+				var params:URLVariables = new URLVariables();
+				params.dateBasedName = (new Date().getTime()).toString() + extension;
+				slide.fileLocation = params.dateBasedName;
+				
+				var request:URLRequest = new URLRequest("http://ten.mcgilleus.ca/actions/UploadSlide.php")
+				request.method = URLRequestMethod.POST;
+				request.data = params;
+				
+				try
+				{
+					fileWaitingForUpload.upload(request);
+				}
+				catch (error:Error)
+				{
+					Alert.show("Unable to start uploading the file. Please refresh the page and try again.", "Error:");
+				}
+			}
+			
+			/**
+			 * @private
+			 * Handles the start of the upload by starting the progress bar.
+			 */
+			private function startProgressHandler(event:Event):void
+			{
+				// set the progress bar to show
+				fileUploadStack.selectedChild = uploadProgressHolder;
+			}
+			
+			/**
+			 * @private
+			 * Handles data from the upload completion by checking the 
+			 * status of the upload and acting accordingly.
+			 */
+			private function uploadDataHandler(event:DataEvent):void
+			{
+				var results:Array = event.data.split(":");
+				if(results[0] == "FAIL")
+				{
+					fileUploadStack.selectedChild = uploadButtonHolder;
+					slide.fileLocation = "";
+					Alert.show(results[1], "Upload Error:");
+				}
+				else if(results[0] == "PASS")
+				{
+					fileUploadStack.selectedChild = uploadPreviewHolder;
+					Alert.show(results[1], "Upload Successfull:");
+					uploadPreview.load('http://ten.mcgilleus.ca/tenapp/slides/' + slide.fileLocation);
+				}
+			}
+			
+			/**
+			 * @private
+			 * Handles a security error during the upload.
+			 */
+			private function securityErrorHandler(event:SecurityErrorEvent):void
+			{
+				fileUploadStack.selectedChild = uploadButtonHolder;
+				Alert.show("A security error occured while uploading your file.  Please contact ten@mcgilleus.ca.", "Error:");
+			}
+			
+			/**
+			 * @private
+			 * Handles an issue with the HTTP connection.
+			 */
+			private function httpErrorHandler(event:HTTPStatusEvent):void
+			{
+				fileUploadStack.selectedChild = uploadButtonHolder;
+				
+				Alert.show("An HTTP error occured while uploading your file.  Please contact ten@mcgilleus.ca", "Error:");
+			}
+			
+			/**
+			 * @private
+			 * Handles an I/O error on the server side.
+			 */
+			private function ioErrorHandler(event:IOErrorEvent):void
+			{
+				fileUploadStack.selectedChild = uploadButtonHolder;
+				Alert.show("An error occured storing the file on our servers during upload.  Please contact ten@mcgilleus.ca", "Error:");
+			}
+			
+			/**
+			 * @private
+			 * Handles a drag enter event on the slide's client 
+			 * list by checking to see if we can drop a client.
+			 */
+			private function dragEnterHandler(event:DragEvent):void
+			{
+				// get the drag data
+				var source:DragSource = event.dragSource;
+				var dragData:Array = source.dataForFormat("items") as Array;
+				
+				// see if we have all of the items already
+				var seenCount:Number = 0;
+				
+				for each(var client:Client in dragData)
+				{
+					if(slide.clients.contains(client))
+					{
+						seenCount++;
+					}
+				}
+				
+				// if we get here, there were only a few repeats
+				if(seenCount < dragData.length)
+				{
+					DragManager.acceptDragDrop(slideClients);
+					DragManager.showFeedback(DragManager.COPY);
+				}
+			}
+			
+			/**
+			 * @private
+			 * Handles a drag drop event by adding the client(s) to 
+			 * the slide.
+			 */
+			private function dragDropHandler(event:DragEvent):void
+			{
+				// get the drag data
+				var source:DragSource = event.dragSource;
+				var dragData:Array = source.dataForFormat("items") as Array;
+				
+				// add the items
+				for each(var client:Client in dragData)
+				{
+					if(!slide.clients.contains(client))
+					{
+						slide.clients.addItem(client);
+					}
+				}
+			}
+			
+			/**
+			 * @private
+			 * Handles the completion of creation of the start
+			 * date selector by listening for a change in the date.
+			 */
+			private function startDateCreatedHandler():void
+			{
+				slidePublishStartDate.addEventListener(CalendarLayoutChangeEvent.CHANGE, selectPublishEndDate);
+			}
+			
+			/**
+			 * @private
+			 * Handles a change in the publish start date 
+			 * by forcing the end date to be equal to or 
+			 * greater than the start date.
+			 */
+			private function selectPublishEndDate(event:CalendarLayoutChangeEvent):void
+			{
+				if(slidePublishEndDate.selectedDate < slidePublishStartDate.selectedDate)
+				{
+					slidePublishEndDate.selectedDate = slidePublishStartDate.selectedDate;
+				}
+			}
+			
+			/**
+			 * @private
+			 * When the start date is selected, the end date cannot be before that;
+			 * this enforeces that.
+			 */
+			private function updateDisabledRanges(e:Event = null):void
+			{
+				if(slidePublishStartDate && slidePublishEndDate)
+				{
+					var selectedDate:Date = slidePublishStartDate.selectedDate;
+						
+					if(selectedDate != null)
+					{
+						var startDate:Date = new Date();
+						startDate.setTime(0);
+						
+						var endDate:Date = new Date(selectedDate.fullYear, selectedDate.month, selectedDate.date, -1);
+						
+						slidePublishEndDate.disabledRanges = [{rangeStart: startDate, rangeEnd: endDate}];
+					}
+				}
+			}
+			
+			/**
+			 * @private
+			 * Checks to see if we have a valid slide and if so 
+			 * checks to see what state the upload is in so the 
+			 * display matches.  Also makes sure date fields display properly.
+			 */
+			private function updateStates():void
+			{
+				// update the uplaod state
+				if(slide != null && fileUploadStack != null)
+				{
+					if(slide.fileLocation == null || slide.fileLocation == "")
+					{
+						// there is no slide, so display only the upload button
+						fileUploadStack.selectedChild = uploadButtonHolder;
+					}
+					else
+					{
+						// there IS a slide, so display the previous and an upload button
+						fileUploadStack.selectedChild = uploadPreviewHolder;
+					}
+				}
+				
+				// update the dates and times
+				if(slide != null)
+				{
+					if(!slide.publishStartDate)
+					{
+						slide.publishStartDate = new Date();
+					}
+					if(slidePublishStartTime != null)
+					{
+						slidePublishStartTime.validateNow();
+						slidePublishStartTime.hour = slide.publishStartDate.getHours();
+						slidePublishStartTime.minute = slide.publishStartDate.getMinutes();
+					}
+					
+					if(slidePublishStartDate != null)
+					{
+						slidePublishStartDate.selectedDate = slide.publishStartDate;
+					}
+					
+					if(!slide.publishEndDate)
+					{
+						slide.publishEndDate = new Date();
+					}
+					if(slidePublishEndTime != null)
+					{
+						slidePublishEndTime.validateNow();
+						slidePublishEndTime.hour = slide.publishEndDate.getHours();
+						slidePublishEndTime.minute = slide.publishEndDate.getMinutes()
+					}
+					
+					if(slidePublishEndDate != null)
+					{
+						slidePublishEndDate.selectedDate = slide.publishEndDate;
+					}
+				}
+			}
+			
+			/**
+			 * @private
+			 * Converts a 'x seconds' string into x as a number.
+			 * @param text the string containing the seconds
+			 */
+			private function secondsStringToNumber(text:String):Number
+			{
+				// pull apart the string; the number is the first element
+				var parts:Array = text.split(" ");
+				var value:Number = Number(parts[0]) * 1000;
+				
+				return value;
+			}
+			
+			/**
+			 * @private
+			 * Handles a change in the slider's value by zooming in 
+			 * or out of the preview image.
+			 */
+			private function changeScale():void
+			{
+				uploadPreview.scaleX = previewScaleSlider.value / 100;
+				uploadPreview.scaleY = previewScaleSlider.value / 100;
+			}
+		]]>
+	</mx:Script>
+	
+	<mx:Form visible="{slide != null}">
+		<mx:FormHeading label="Slide Information"/>
+		
+		<mx:FormItem label="Name:" required="true">
+			<mx:TextInput id="slideName" text="{slide.slideName}" change="slide.slideName = slideName.text"/>
+		</mx:FormItem>
+		
+		<mx:FormItem label="Visible on:" required="true">
+			<mx:HBox>
+				<mx:VBox>
+					<mx:Label text="Available Clients:"/>
+					<mx:List width="300" height="210" dataProvider="{dataShop.clients}"
+						itemRenderer="org.ten.clientManagement.ClientItemRenderer" 
+						dragEnabled="true" allowMultipleSelection="true"/>
+				</mx:VBox>
+				
+				<mx:VBox>
+					<mx:Label text="Display This Slide On:"/>
+					<mx:List id="slideClients" width="300" height="210" dataProvider="{slide.clients}"
+						itemRenderer="org.ten.clientManagement.ClientItemRenderer" 
+						dragEnter="dragEnterHandler(event)" allowDragSelection="false" 
+						dragDrop="dragDropHandler(event)"/>
+					<mx:Button label="Clear" click="slide.clients = new ArrayCollection()" enabled="{slide.clients.length > 0}"/>
+				</mx:VBox>
+			</mx:HBox>
+		</mx:FormItem>
+		
+		<mx:FormItem label="Publish State:" required="true">
+			<mx:ComboBox id="slidePublishState" dataProvider="{Slide.PUBLISHED_STATES}" 
+				selectedIndex="{Slide.PUBLISHED_STATES.getItemIndex(slide.publishState)}"
+				change="slide.publishState = slidePublishState.selectedItem as String"/>
+		</mx:FormItem>
+		
+		<mx:FormItem label="Publish Dates:" includeInLayout="{slide.publishState == Slide.PUBLISHED_DATE_RANGE}"
+			visible="{slide.publishState == Slide.PUBLISHED_DATE_RANGE}" required="true" horizontalAlign="right">
+			<mx:HBox verticalAlign="middle">
+				<mx:Label text="From:"/>
+				<components:TimeEntry id="slidePublishStartTime" showSeconds="false" is24Hour="true"
+					backgroundColor="0x000000" backgroundAlpha="0.05" borderColor="0x999999"
+					borderThickness="1" borderStyle="solid" cornerRadius="5" hour="{slide.publishStartDate.getHours()}"
+					minute="{slide.publishStartDate.getMinutes()}"/>
+				<mx:Label text="on"/>
+				<mx:DateField id="slidePublishStartDate" valueCommit="updateDisabledRanges()" 
+					creationComplete="startDateCreatedHandler()" selectedDate="{new Date()}"/>
+			</mx:HBox>
+			<mx:HBox verticalAlign="middle">
+				<mx:Label text="Until:"/>
+				<components:TimeEntry id="slidePublishEndTime" showSeconds="false" is24Hour="true"
+					backgroundColor="0x000000" backgroundAlpha="0.05" borderColor="0x999999"
+					borderThickness="1" borderStyle="solid" cornerRadius="5" hour="{slide.publishEndDate.getHours()}"
+					minute="{slide.publishEndDate.getMinutes()}"/>
+				<mx:Label text="on"/>
+				<mx:DateField id="slidePublishEndDate" formatString="MM/DD/YYYY" selectedDate="{new Date()}"/>
+			</mx:HBox>
+		</mx:FormItem>
+		
+		<mx:FormItem label="Approval State:">
+			<mx:Label text="{slide.approvalState}"/>
+			<!-- here we will have the response area so they can respond to statuses -->
+		</mx:FormItem>
+		
+		<mx:FormItem label="Screen Take-Over:" includeInLayout="{dataShop.currentUser.canTakeOver}"
+			visible="{dataShop.currentUser.canTakeOver}">
+			<mx:RadioButtonGroup id="slideTakeOver" selectedValue="{false}" 
+				change="slide.takeOver = slideTakeOver.selectedValue"/>
+			<mx:RadioButton group="{slideTakeOver}" value="{true}" label="Yes"/>
+			<mx:RadioButton group="{slideTakeOver}" value="{false}" label="No"/>
+		</mx:FormItem>
+		
+		<mx:FormItem label="Duration:" includeInLayout="{dataShop.currentUser.canChooseDurationTime}"
+			visible="{dataShop.currentUser.canChooseDurationTime}">
+			<mx:ComboBox id="slideDurationTime" dataProvider="{Slide.DURATION_TIMES}" 
+				selectedIndex="{Slide.DURATION_TIMES.getItemIndex('10 seconds')}"
+				change="slide.durationTime = secondsStringToNumber(slideDurationTime.selectedItem as String)"/>
+		</mx:FormItem>
+		
+		<mx:FormItem label="File Upload:" required="true">
+			<mx:ViewStack id="fileUploadStack" resizeToContent="true">
+				<mx:Box id="uploadButtonHolder">
+					<mx:Button label="Upload..." click="uploadButtonHandler()"/>
+				</mx:Box>
+				
+				<mx:Box id="uploadProgressHolder">
+					<mx:ProgressBar id="uploadProgress" label="UPLOADING..." labelPlacement="center"  width="150"
+						source="{fileWaitingForUpload}" mode="event"/>
+				</mx:Box>
+				
+				<mx:VBox id="uploadPreviewHolder">
+					<mx:Button label="Upload a new file..." click="uploadButtonHandler()"/>
+					<mx:HBox>
+						<mx:Label text="Preview Scale:"/>
+						<mx:HSlider id="previewScaleSlider" minimum="10" maximum="100" value="50" dataTipPlacement="bottom" 
+							snapInterval="1" tickInterval="10" labels="['10%','100%']" allowTrackClick="true"
+							liveDragging="true" change="changeScale()"/>
+					</mx:HBox>
+					<mx:Image id="uploadPreview" source="{(slide == null || slide.fileLocation == '' ? '' :  'http://ten.mcgilleus.ca/tenapp/slides/' + slide.fileLocation)}"
+						scaleX="0.5" scaleY="0.5"/>
+				</mx:VBox>
+			</mx:ViewStack>
+		</mx:FormItem>
+	</mx:Form>
+	
+	<mx:ControlBar width="100%">
+		<mx:Button label="{(slide.id == 0 ? 'Create Slide' : 'Save Changes')}" click="saveButtonHandler()"/>
+		<mx:Button label="Cancel Changes" click="cancelButtonHandler()"/>
+		<mx:Button label="Delete Slide" click="deleteButtonHandler()" 
+			includeInLayout="{slide.id > 0}" visible="{slide.id > 0}"/>
+	</mx:ControlBar>
+	
+	<!-- Effects -->
+	<efflex:Fade id="fader" transparent="true" duration="400"/>
+	
+</mx:Panel>

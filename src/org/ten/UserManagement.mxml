@@ -1,0 +1,104 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:HBox xmlns:mx="http://www.adobe.com/2006/mxml" 
+	xmlns:user="org.ten.userManagement.*"
+	xmlns:efflex="org.efflex.mx.viewStackEffects.*" 
+	width="100%" height="100%" show="User.getUsers();"
+	label="User Management">
+	
+	<mx:Script>
+		<![CDATA[
+			import org.ten.classes.DataShop;
+			import com.adobe.utils.DictionaryUtil;
+			import mx.events.ListEvent;
+			import org.ten.classes.User;
+			
+			[Bindable]
+			/**
+			 * @private
+			 * Our reference to the data shop.
+			 */
+			private var dataShop:DataShop = DataShop.getInstance();
+			
+			/**
+			 * @private
+			 * Handles the click in the list by 
+			 * showing information about that user 
+			 * in the view panel.
+			 */
+			private function handleSelection(event:ListEvent):void
+			{
+				// switch to the view state if we aren't already there
+				if(managementViews.selectedChild != viewPanel)
+				{
+					managementViews.selectedChild = viewPanel;
+				}
+				
+				// tell that panel to view the selected item
+				viewPanel.user = userList.selectedItem as User;
+				viewPanel.spotStack.selectedIndex = 0;
+			}
+			
+			/**
+			 * @private
+			 * Handles the edit button function that will be 
+			 * passed to the view panel.
+			 */
+			private function editButtonHandler():void
+			{
+				editPanel.user = viewPanel.user;
+				managementViews.selectedChild = editPanel;
+			}
+			
+			/**
+			 * @private
+			 * Handles the back functions when buttons in
+			 * the edit panel request to return to the
+			 * view panel.
+			 */
+			private function backButtonHandler():void
+			{
+				if(editPanel.user.id > 0)
+				{
+					viewPanel.user = editPanel.user;
+				}
+				else
+				{
+					viewPanel.user = null;
+				}
+				managementViews.selectedChild = viewPanel;
+			}
+			
+			/**
+			 * @private
+			 * Handles the New button click by switching
+			 * views so we can create a new user.
+			 */
+			private function newButtonHandler():void
+			{
+				editPanel.user = new User();
+				managementViews.selectedChild = editPanel;
+			}
+		]]>
+	</mx:Script>
+	
+	<!-- Display Elements -->
+	<mx:Panel height="100%" width="300" title="Users">
+		<mx:List id="userList" dataProvider="{dataShop.users}" height="100%" width="100%"
+			 itemRenderer="org.ten.userManagement.UserItemRenderer" change="handleSelection(event)"/>
+		
+		<mx:ControlBar>
+			<mx:Button label="New User" click="newButtonHandler()"/>
+		</mx:ControlBar>
+	</mx:Panel>
+	
+	<mx:ViewStack id="managementViews" width="100%" height="100%" creationPolicy="all">
+		<user:ViewUserPanel id="viewPanel" editButtonFunction="{editButtonHandler}"
+			hideEffect="{fader}" showEffect="{fader}"/>
+		<user:CreateEditUserPanel id="editPanel" backFunction="{backButtonHandler}"
+			hideEffect="{fader}" showEffect="{fader}"/>
+	</mx:ViewStack>
+	
+	<!-- Effects -->
+	<efflex:Fade id="fader" transparent="true" duration="400"/>
+	
+</mx:HBox>

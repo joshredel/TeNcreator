@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:Canvas xmlns:mx="http://www.adobe.com/2006/mxml" 
+	width="100%" height="42" horizontalScrollPolicy="off"
+	verticalScrollPolicy="off">
+	
+	<mx:Script>
+		<![CDATA[
+			import org.ten.classes.Slide;
+		]]>
+	</mx:Script>
+	
+	<mx:VBox>
+		<mx:Label text="{data.slideName}" 
+			styleName="rendererHeader" 
+			truncateToFit="true" maxWidth="270"/>
+		<mx:Label text="Status: {(data.approvalState == Slide.APPROVAL_ACCEPTED ? data.publishState : data.approvalState)}" 
+			truncateToFit="true" maxWidth="270"/>
+	</mx:VBox>
+</mx:Canvas>

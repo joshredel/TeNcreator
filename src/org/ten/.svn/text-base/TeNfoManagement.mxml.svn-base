@@ -1,0 +1,104 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:HBox xmlns:mx="http://www.adobe.com/2006/mxml" 
+	xmlns:tenfo="org.ten.tenfoManagement.*"
+	xmlns:efflex="org.efflex.mx.viewStackEffects.*" 
+	width="100%" height="100%" show="TeNfo.getTeNfos()"
+	label="{(dataShop.currentUser == null ? '' : (dataShop.currentUser.type == User.TYPE_PERSON ? 'My' : 'Our'))} Ticker Management">
+	
+	<mx:Script>
+		<![CDATA[
+			import org.ten.classes.DataShop;
+			import mx.events.ListEvent;
+			import org.ten.classes.User;
+			import org.ten.classes.Client;
+			import org.ten.classes.TeNfo;
+			
+			[Bindable]
+			/**
+			 * @private
+			 * Our reference to the data shop.
+			 */
+			private var dataShop:DataShop = DataShop.getInstance();
+			
+			/**
+			 * @private
+			 * Handles the click in the list by 
+			 * showing information about that TeNfo 
+			 * in the view panel.
+			 */
+			private function handleSelection(event:ListEvent):void
+			{
+				// switch to the view state if we aren't already there
+				if(managementViews.selectedChild != viewPanel)
+				{
+					managementViews.selectedChild = viewPanel;
+				}
+				
+				// tell that panel to view the selected item
+				viewPanel.tenfo = clientList.selectedItem as TeNfo;
+			}
+			
+			/**
+			 * @private
+			 * Handles the edit button function that will be 
+			 * passed to the view panel.
+			 */
+			private function editButtonHandler():void
+			{
+				editPanel.tenfo = viewPanel.tenfo;
+				managementViews.selectedChild = editPanel;
+			}
+			
+			/**
+			 * @private
+			 * Handles the back functions when buttons in
+			 * the edit panel request to return to the
+			 * view panel.
+			 */
+			private function backButtonHandler():void
+			{
+				if(editPanel.tenfo.id > 0)
+				{
+					viewPanel.tenfo = editPanel.tenfo;
+				}
+				else
+				{
+					viewPanel.tenfo = null;
+				}
+				managementViews.selectedChild = viewPanel;
+			}
+			
+			/**
+			 * @private
+			 * Handles the New button click by switching
+			 * views so we can create a new TeNfo.
+			 */
+			private function newButtonHandler():void
+			{
+				editPanel.tenfo = new TeNfo();
+				managementViews.selectedChild = editPanel;
+			}
+		]]>
+	</mx:Script>
+	
+	<!-- Display Elements -->
+	<mx:Panel height="100%" width="300" title="Ticker Content">
+		<mx:List id="clientList" dataProvider="{dataShop.myTeNfos}" height="100%" width="100%"
+			 itemRenderer="org.ten.tenfoManagement.TeNfoItemRenderer" change="handleSelection(event)"/>
+		
+		<mx:ControlBar>
+			<mx:Button label="New Content" click="newButtonHandler()"/>
+		</mx:ControlBar>
+	</mx:Panel>
+	
+	<mx:ViewStack id="managementViews" width="100%" height="100%" creationPolicy="all">
+		<tenfo:ViewTeNfoPanel id="viewPanel" editButtonFunction="{editButtonHandler}"
+			hideEffect="{fader}" showEffect="{fader}"/>
+		<tenfo:CreateEditTeNfoPanel id="editPanel" backFunction="{backButtonHandler}"
+			hideEffect="{fader}" showEffect="{fader}"/>
+	</mx:ViewStack>
+	
+	<!-- Effects -->
+	<efflex:Fade id="fader" transparent="true" duration="400"/>
+	
+</mx:HBox>
